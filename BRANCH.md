@@ -29,3 +29,11 @@ Pilih base branch sesuai platform kamu, kemudian buat branch fitur baru.
 git checkout dev/be
 git pull origin dev/be
 git checkout -b be-feature/nama-fitur-kamu
+
+
+## Jenis,Contoh Pesan Commit
+Menambah API baru,      feat(be): integrasi api sebaran pangan lampung
+Memperbaiki error UI,   fix(fe): perbaikan layout kartu berita di mobile
+Update Dokumentasi,     docs: tambahkan panduan instalasi project
+Merapikan Kode,         refactor(mobile): optimasi fungsi fetch data stok
+Update Library,         chore: update supabase-js version 2.0
