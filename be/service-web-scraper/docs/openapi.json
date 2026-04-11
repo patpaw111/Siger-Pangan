@@ -87,7 +87,7 @@
                           "provinceBiId": 10,
                           "marketTypeId": 1,
                           "marketTypeName": "Pasar Tradisional",
-                          "price": "13500.00",
+                          "price": 13500,
                           "priceType": "harga",
                           "priceDate": "2026-04-10",
                           "source": "BI Harga Pangan",
@@ -106,7 +106,7 @@
                           "provinceBiId": 10,
                           "marketTypeId": 1,
                           "marketTypeName": "Pasar Tradisional",
-                          "price": "13200.00",
+                          "price": 13200,
                           "priceType": "harga",
                           "priceDate": "2026-04-10",
                           "source": "BI Harga Pangan",
@@ -213,7 +213,7 @@
                           "provinceBiId": 10,
                           "marketTypeId": 1,
                           "marketTypeName": "Pasar Tradisional",
-                          "price": "13500.00",
+                          "price": 13500,
                           "priceType": "harga",
                           "priceDate": "2026-04-10",
                           "source": "BI Harga Pangan",
@@ -287,19 +287,19 @@
                       "data": [
                         {
                           "regionName": "Bandar Lampung",
-                          "price": "13500.00",
+                          "price": 13500,
                           "priceDate": "2026-04-10",
                           "denomination": "kg"
                         },
                         {
                           "regionName": "Pringsewu",
-                          "price": "13200.00",
+                          "price": 13200,
                           "priceDate": "2026-04-10",
                           "denomination": "kg"
                         },
                         {
                           "regionName": "Metro",
-                          "price": "13800.00",
+                          "price": 13800,
                           "priceDate": "2026-04-10",
                           "denomination": "kg"
                         }
@@ -615,11 +615,10 @@
             "example": "Pasar Tradisional"
           },
           "price": {
-            "type": "string",
-            "format": "decimal",
+            "type": "integer",
             "nullable": true,
-            "description": "Harga dalam Rupiah (disimpan sebagai decimal string dari PostgreSQL)",
-            "example": "13500.00"
+            "description": "Harga dalam Rupiah bulat (IDR)",
+            "example": 13500
           },
           "priceType": {
             "type": "string",
@@ -680,10 +679,9 @@
             "example": "Bandar Lampung"
           },
           "price": {
-            "type": "string",
-            "format": "decimal",
+            "type": "integer",
             "nullable": true,
-            "example": "13500.00"
+            "example": 13500
           },
           "priceDate": {
             "type": "string",
