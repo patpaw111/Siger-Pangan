@@ -1,0 +1,58 @@
+version: '3.9'
+
+# File ini di-extend dari docker-compose.yml untuk kebutuhan development lokal
+# Jalankan dengan: docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+#
+# Perbedaan dari production:
+# - NestJS & FastAPI berjalan di host (bukan di container) agar hot-reload bekerja
+# - Hanya infra services yang dijalankan via Docker (postgres, redis, meilisearch)
+# - Port langsung diakses tanpa Nginx
+
+services:
+  # Overwrite: matikan service-nestjs, service-fastapi, dan nginx di dev
+  # Jalankan mereka langsung di host dengan `npm run start:dev` dan `uvicorn`
+  service-nestjs:
+    profiles:
+      - production-only
+
+  service-fastapi:
+    profiles:
+      - production-only
+
+  nginx:
+    profiles:
+      - production-only
+
+  # Override postgres untuk dev: tambahkan port yang lebih mudah diakses
+  postgres:
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_DB: siger_pangan_dev
+      POSTGRES_USER: siger_user
+      POSTGRES_PASSWORD: siger_dev_password
+
+  # Override redis untuk dev: tanpa password agar lebih mudah
+  redis:
+    command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+
+  # MeiliSearch di dev tanpa auth
+  meilisearch:
+    environment:
+      MEILI_MASTER_KEY: ''
+      MEILI_ENV: development
+    ports:
+      - '7700:7700'
+
+  # Prometheus & Grafana tetap berjalan di dev
+  prometheus:
+    ports:
+      - '9090:9090'
+
+  grafana:
+    ports:
+      - '3001:3000'
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
