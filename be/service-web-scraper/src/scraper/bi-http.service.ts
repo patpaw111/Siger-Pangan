@@ -53,35 +53,53 @@ export class BiHttpService {
   }
 
   /**
-   * Inisialisasi session cookie dengan mengunjungi halaman utama.
-   * Diperlukan karena API BI membutuhkan session yang valid.
+   * Inisialisasi session cookie dengan mengunjungi halaman BI.
+   * Non-fatal: jika gagal, scraping tetap dicoba tanpa session.
+   * BI PIHPS menggunakan ASP.NET session — cookie diperoleh dari halaman HTML.
    */
   async initSession(): Promise<void> {
-    try {
-      this.logger.log('Menginisialisasi session ke BI Harga Pangan...');
-      const response = await axios.get(BI_BASE_URL + '/hargapangan', {
-        timeout: 30_000,
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        },
-        maxRedirects: 5,
-      });
+    // Coba beberapa kandidat URL halaman BI (urut dari yang paling mungkin valid)
+    const candidateUrls = [
+      `${BI_BASE_URL}/TabelHarga/PasarTradisionalDaerah`,
+      `${BI_BASE_URL}/home/index`,
+      BI_BASE_URL,
+    ];
 
-      // Ambil Set-Cookie dari response
-      const setCookie = response.headers['set-cookie'];
-      if (setCookie && setCookie.length > 0) {
-        this.sessionCookie = setCookie
-          .map((c: string) => c.split(';')[0])
-          .join('; ');
-        this.client.defaults.headers.common['Cookie'] = this.sessionCookie;
-        this.logger.log(`Session cookie berhasil diambil`);
-      } else {
-        this.logger.warn('Tidak ada Set-Cookie diterima dari BI, akan coba tanpa session');
+    for (const url of candidateUrls) {
+      try {
+        this.logger.log(`Mencoba init session dari: ${url}`);
+        const response = await axios.get(url, {
+          timeout: 30_000,
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          maxRedirects: 5,
+          validateStatus: (status) => status < 500, // terima 2xx dan 3xx
+        });
+
+        const setCookie = response.headers['set-cookie'];
+        if (setCookie && setCookie.length > 0) {
+          this.sessionCookie = setCookie
+            .map((c: string) => c.split(';')[0])
+            .join('; ');
+          this.client.defaults.headers.common['Cookie'] = this.sessionCookie;
+          this.logger.log(`✅ Session cookie berhasil dari: ${url}`);
+          return; // Sukses, tidak perlu coba URL berikutnya
+        }
+
+        this.logger.debug(`Tidak ada Set-Cookie dari ${url} (status: ${response.status}), coba URL berikutnya...`);
+      } catch (err) {
+        this.logger.debug(`Gagal akses ${url}: ${err.message}`);
       }
-    } catch (err) {
-      this.logger.error(`Gagal inisialisasi session: ${err.message}`);
     }
+
+    // Semua URL gagal — lanjutkan tanpa session (BI mungkin tidak wajib session untuk data API)
+    this.logger.warn(
+      '⚠️  Tidak berhasil mendapat session cookie dari BI. ' +
+      'Akan tetap mencoba fetch data (beberapa endpoint BI tidak wajib session).',
+    );
   }
 
   /**

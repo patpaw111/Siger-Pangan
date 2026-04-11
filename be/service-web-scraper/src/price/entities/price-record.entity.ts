@@ -28,7 +28,7 @@ export class PriceRecord {
   @Index()
   regionBiId: number | null; // ID dari BI API (kabupaten)
 
-  @Column({ name: 'region_name', length: 150, nullable: true })
+  @Column({ name: 'region_name', type: 'varchar', length: 150, nullable: true })
   regionName: string | null;
 
   @Column({ name: 'province_bi_id', type: 'int', default: 10 })
@@ -43,7 +43,7 @@ export class PriceRecord {
 
   // Harga
   @Column({ name: 'price', type: 'decimal', precision: 14, scale: 2, nullable: true })
-  price: number | null;
+  price: number | null; // TypeORM reads decimal as string — parsed in service layer
 
   @Column({ name: 'price_type', length: 30, default: 'harga' })
   priceType: string; // 'harga', 'harga_tertinggi', 'harga_terendah', 'harga_rata_rata'

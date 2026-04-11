@@ -38,8 +38,8 @@ be/service-nlp/app/grpc_generated/*_pb2_grpc.py
 playwright-report/
 test-results/
 
-# ── Docker ──
-*.dockerignore
+# ── Docker (jangan ignore .dockerignore — wajib di-commit!) ──
+# *.dockerignore  ← JANGAN ignore ini
 
 # ── IDE / Editors ──
 .vscode/
