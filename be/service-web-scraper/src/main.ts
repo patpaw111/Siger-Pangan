@@ -17,10 +17,22 @@ async function bootstrap() {
     }),
   );
 
-  // CORS untuk Flutter dan Next.js
+  // CORS — izinkan semua port dev lokal yang umum dipakai FE
+  // Override via env: ALLOWED_ORIGINS=http://domain1.com,http://domain2.com
+  const defaultOrigins = [
+    'http://localhost:3000',  // Next.js (default)
+    'http://localhost:3001',  // Next.js (alt) / CRA
+    'http://localhost:5173',  // Vite
+    'http://localhost:5174',  // Vite (alt)
+    'http://localhost:4200',  // Angular
+    'http://localhost:8081',  // Flutter web (alt)
+    'http://localhost:8080',  // Adminer / Flutter web
+    'http://127.0.0.1:5500', // VS Code Live Server
+  ];
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? ['http://localhost:3001', 'http://localhost:8080'],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? defaultOrigins,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
   });
 
