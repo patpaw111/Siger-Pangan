@@ -14,14 +14,19 @@ export interface BiPriceRow {
 }
 
 export interface BiRawRow {
-  komoditas: string;
-  kab_kota: string;
-  tgl: string;
-  harga: string;
+  // ── Field-field yang dikonfirmasi dari network inspection BI PIHPS ──
+  komoditas?: string;
+  kab_kota?: string;
+  tgl?: string;          // format: YYYY-MM-DD atau DD/MM/YYYY
+  harga?: string;
   harga_tertinggi?: string;
   harga_terendah?: string;
   harga_rata_rata?: string;
-  // field lain mungkin ada tergantung response
+  // Field alternatif (tergantung versi endpoint)
+  commodity_name?: string;
+  regency_name?: string;
+  price_date?: string;
+  price?: string;
   [key: string]: string | undefined;
 }
 
@@ -47,7 +52,8 @@ export class BiHttpService {
         Accept: 'application/json, text/javascript, */*; q=0.01',
         'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8',
         'X-Requested-With': 'XMLHttpRequest',
-        Referer: BI_BASE_URL + '/hargapangan',
+        // Referer harus menunjuk ke halaman yang memuat grid tersebut
+        Referer: `${BI_BASE_URL}/TabelHarga/PasarTradisionalDaerah`,
       },
     });
   }
@@ -120,43 +126,50 @@ export class BiHttpService {
   /**
    * Ambil data harga dari API BI untuk range tanggal tertentu.
    *
-   * @param marketTypeId  1=Tradisional, 2=Modern, 3=Pedagang Besar
-   * @param startDate     format 'DD/MM/YYYY'
-   * @param endDate       format 'DD/MM/YYYY'
-   * @param provinceId    10 = Lampung
-   * @param commodityId   'com_1'|'cat_1'|'0' (0 = semua)
-   * @param regencyId     0 = semua kabupaten
+   * Parameter dikonfirmasi valid dari browser network inspection:
+   * - price_type_id : 1=Tradisional, 2=Modern, 3=Pedagang Besar
+   * - province_id   : "10" untuk Lampung, ATAU string kosong "" untuk semua provinsi
+   *                   ⚠️  angka 0 atau "0" = data kosong!
+   * - comcat_id     : "" atau string kosong = semua komoditas
+   *                   ⚠️  "0" atau angka 0 = data kosong!
+   * - regency_id    : "" = semua kabupaten
+   * - market_id     : "" = semua pasar
+   * - tipe_laporan  : 1 = Laporan Harian
+   * - start_date    : format YYYY-MM-DD
+   * - end_date      : format YYYY-MM-DD
    */
   async fetchPriceData(params: {
     marketTypeId: number;
-    startDate: string;
-    endDate: string;
-    provinceId?: number;
-    commodityId?: string;
-    regencyId?: number;
+    startDate: string;   // format: YYYY-MM-DD
+    endDate: string;     // format: YYYY-MM-DD
+    provinceId?: number | string;  // 10 untuk Lampung, atau "" untuk semua
+    commodityId?: string;          // "" untuk semua komoditas
+    regencyId?: number | string;   // "" untuk semua kabupaten
   }): Promise<BiRawRow[]> {
     const {
       marketTypeId,
       startDate,
       endDate,
       provinceId = 10,
-      commodityId = '0',
-      regencyId = 0,
+      commodityId = '',   // ← PENTING: string kosong untuk semua!
+      regencyId = '',     // ← PENTING: string kosong untuk semua!
     } = params;
 
     try {
-      // Coba endpoint GetGridDataDaerah (Berdasarkan Daerah)
-      const res = await this.client.post('/GetGridDataDaerah', null, {
+      // Params dikonfirmasi valid dari browser network inspection BI PIHPS
+      const res = await this.client.get('/GetGridDataDaerah', {
         params: {
-          prov_id: provinceId,
-          market_type: marketTypeId,
-          start_date: startDate,
-          end_date: endDate,
-          comcat_id: commodityId,
-          kab_kota_id: regencyId,
+          price_type_id: marketTypeId,
+          province_id: provinceId,   // 10 untuk Lampung
+          comcat_id: commodityId,    // "" = semua komoditas
+          regency_id: regencyId,     // "" = semua kabupaten
+          market_id: '',             // "" = semua pasar
+          tipe_laporan: 1,           // 1 = Laporan Harian
+          start_date: startDate,     // format: YYYY-MM-DD ✔̲
+          end_date: endDate,         // format: YYYY-MM-DD ✔̲
           draw: 1,
           start: 0,
-          length: -1, // ambil semua data
+          length: -1,
         },
       });
 
@@ -167,40 +180,8 @@ export class BiHttpService {
       this.logger.error(
         `Gagal fetch data harga [market_type=${marketTypeId}, ${startDate}→${endDate}]: ${err.message}`,
       );
-
-      // Fallback ke endpoint alternatif
-      return this.fetchPriceDataFallback(params);
-    }
-  }
-
-  /**
-   * Fallback endpoint jika GetGridDataDaerah gagal.
-   */
-  private async fetchPriceDataFallback(params: {
-    marketTypeId: number;
-    startDate: string;
-    endDate: string;
-    provinceId?: number;
-    commodityId?: string;
-    regencyId?: number;
-  }): Promise<BiRawRow[]> {
-    const { marketTypeId, startDate, endDate, provinceId = 10, commodityId = '0', regencyId = 0 } = params;
-
-    try {
-      const res = await this.client.get('/GetGridDataDaerah', {
-        params: {
-          prov_id: provinceId,
-          market_type: marketTypeId,
-          start_date: startDate,
-          end_date: endDate,
-          comcat_id: commodityId,
-          kab_kota_id: regencyId,
-        },
-      });
-      return res.data?.data ?? [];
-    } catch (fallbackErr) {
-      this.logger.error(`Fallback juga gagal: ${fallbackErr.message}`);
       return [];
     }
   }
+
 }

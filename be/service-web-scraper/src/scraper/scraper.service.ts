@@ -151,18 +151,23 @@ export class ScraperService implements OnModuleInit {
     const { marketTypeId, marketTypeName, startDate, endDate } = params;
     const result: ScrapeResult = { inserted: 0, updated: 0, skipped: 0, errors: 0, durationMs: 0 };
 
-    const startStr = format(startDate, 'dd/MM/yyyy');
-    const endStr = format(endDate, 'dd/MM/yyyy');
+    // ⚠️  Format yang benar untuk API BI: YYYY-MM-DD (bukan DD/MM/YYYY!)
+    const startStr = format(startDate, 'yyyy-MM-dd');
+    const endStr = format(endDate, 'yyyy-MM-dd');
 
-    this.logger.debug(`Chunk: ${marketTypeName} | ${startStr} → ${endStr}`);
+    // Ini untuk log saja — format lebih readable
+    const startDisplay = format(startDate, 'dd/MM/yyyy');
+    const endDisplay = format(endDate, 'dd/MM/yyyy');
+
+    this.logger.debug(`Chunk: ${marketTypeName} | ${startDisplay} → ${endDisplay}`);
 
     const rawRows = await this.biHttp.fetchPriceData({
       marketTypeId,
-      startDate: startStr,
+      startDate: startStr,   // YYYY-MM-DD ← confirmed format BI API
       endDate: endStr,
       provinceId: BI_PROVINCE_LAMPUNG_ID,
-      commodityId: '0', // semua komoditas
-      regencyId: 0,     // semua kabupaten
+      commodityId: '',   // ⚠️  '' bukan '0' — '0' kembalikan data kosong!
+      regencyId: '',     // ⚠️  '' bukan 0  — 0 kembalikan data kosong!
     });
 
     if (!rawRows || rawRows.length === 0) {
@@ -170,19 +175,11 @@ export class ScraperService implements OnModuleInit {
       return result;
     }
 
-    this.logger.debug(`Raw rows diterima: ${rawRows.length}`);
+    this.logger.debug(`Raw rows diterima: ${rawRows.length} (termasuk header kategori)`);
 
-    // Parse dan simpan setiap baris
-    const recordsToUpsert: PriceRecord[] = [];
-    for (const row of rawRows) {
-      try {
-        const parsed = this.parseRow(row, marketTypeId, marketTypeName);
-        if (parsed) recordsToUpsert.push(parsed);
-      } catch (e) {
-        result.errors++;
-        this.logger.warn(`Gagal parse row: ${JSON.stringify(row)} — ${e.message}`);
-      }
-    }
+    // Parse pivot table → expand ke individual PriceRecord per (komoditas × tanggal)
+    const recordsToUpsert = this.parsePivotRows(rawRows, marketTypeId, marketTypeName);
+    this.logger.debug(`Records setelah expand pivot: ${recordsToUpsert.length}`);
 
     // Batch upsert ke PostgreSQL
     if (recordsToUpsert.length > 0) {
@@ -195,47 +192,108 @@ export class ScraperService implements OnModuleInit {
   }
 
   /**
-   * Parse satu baris raw data dari API BI ke entity PriceRecord.
+   * Parse pivot-table response dari BI API → array of PriceRecord.
+   *
+   * Format response BI PIHPS (bukan baris per record, tapi PIVOT TABLE):
+   * { "no": "I", "name": "Beras", "level": 1, "01/04/2026": "14,850", "02/04/2026": "-", ... }
+   *
+   * - level 1 = header kategori → SKIP
+   * - level 2 = komoditas detail → PROSES
+   * - Kolom dengan format DD/MM/YYYY adalah tanggal, nilainya adalah harga
+   */
+  private parsePivotRows(
+    rows: BiRawRow[],
+    marketTypeId: number,
+    marketTypeName: string,
+  ): PriceRecord[] {
+    const records: PriceRecord[] = [];
+
+    // Regex untuk detect kolom tanggal: DD/MM/YYYY
+    const dateColRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+
+    for (const row of rows) {
+      // Hanya proses level 2 (komoditas detail), skip level 1 (kategori/header)
+      const level = Number(row['level'] ?? 1);
+      if (level !== 2) continue;
+
+      const commodityName = (row['name'] ?? '').trim();
+      if (!commodityName) continue;
+
+      // Cari komoditas & kategori dari konstanta
+      const commodity = BI_COMMODITIES.find(
+        (c) => c.name.toLowerCase() === commodityName.toLowerCase(),
+      );
+      const category = commodity
+        ? BI_CATEGORIES.find((cat) => cat.id === commodity.cat_id) ?? null
+        : null;
+
+      // Loop setiap kolom — yang berbentuk DD/MM/YYYY adalah kolom harga per tanggal
+      for (const [key, value] of Object.entries(row)) {
+        if (!dateColRegex.test(key)) continue;
+
+        const priceDate = this.parseDate(key); // parse dari DD/MM/YYYY
+        if (!priceDate) continue;
+
+        const price = this.parsePrice(value as string);
+        // Skip jika harga tidak ada ('-' atau kosong) — bisa di-insert sebagai null jika perlu
+        // if (price === null) continue;  // ← uncomment jika tidak mau simpan "-"
+
+        records.push(
+          this.priceRepo.create({
+            commodityBiId: commodity?.id ?? `unknown_${commodityName.slice(0, 10)}`,
+            commodityName,
+            categoryBiId: category?.id ?? 'unknown',
+            categoryName: category?.name ?? 'Unknown',
+            denomination: commodity?.denomination ?? 'kg',
+            regionBiId: null,
+            regionName: null,       // endpoint GetGridDataDaerah tanpa filter = agregat semua daerah
+            provinceBiId: BI_PROVINCE_LAMPUNG_ID,
+            marketTypeId,
+            marketTypeName,
+            price,
+            priceType: 'harga',
+            priceDate,
+            source: 'BI Harga Pangan',
+          }),
+        );
+      }
+    }
+
+    return records;
+  }
+
+  /**
+   * @deprecated Gunakan parsePivotRows() — BI API mengembalikan pivot table, bukan row per record.
    */
   private parseRow(
     row: BiRawRow,
     marketTypeId: number,
     marketTypeName: string,
   ): PriceRecord | null {
-    // Normalisasi nama komoditas → temukan ID dari konstanta
-    const commodityName = (row.komoditas ?? row.nama_komoditas ?? '').trim();
+    const commodityName = (row.komoditas ?? row['name'] ?? '').trim();
     const commodity = BI_COMMODITIES.find(
       (c) => c.name.toLowerCase() === commodityName.toLowerCase(),
     );
-    const category = BI_CATEGORIES.find(
-      (c) => c.name.toLowerCase() === commodityName.toLowerCase(),
-    );
-
-    const currentCommodity = commodity ?? null;
-    const currentCategory = commodity
+    const category = commodity
       ? BI_CATEGORIES.find((cat) => cat.id === commodity.cat_id) ?? null
-      : category ?? null;
+      : null;
 
-    // Parse tanggal: format bisa DD/MM/YYYY atau YYYY-MM-DD
-    const rawDate = row.tgl ?? row.tanggal ?? '';
+    const rawDate = row.tgl ?? row['price_date'] ?? '';
     const priceDate = this.parseDate(rawDate);
     if (!priceDate) return null;
 
-    // Parse harga
-    const rawPrice = row.harga ?? row.harga_rata_rata ?? '';
+    const rawPrice = row.harga ?? row['harga_rata_rata'] ?? '';
     const price = this.parsePrice(rawPrice);
+    const regionName = (row.kab_kota ?? '').trim() || null;
 
-    // Region
-    const regionName = (row.kab_kota ?? row.kabupaten ?? '').trim() || null;
-
-    const record = this.priceRepo.create({
-      commodityBiId: currentCommodity?.id ?? 'unknown',
+    return this.priceRepo.create({
+      commodityBiId: commodity?.id ?? 'unknown',
       commodityName: commodityName || 'Unknown',
-      categoryBiId: currentCategory?.id ?? 'unknown',
-      categoryName: currentCategory?.name ?? 'Unknown',
-      denomination: currentCommodity?.denomination ?? 'kg',
+      categoryBiId: category?.id ?? 'unknown',
+      categoryName: category?.name ?? 'Unknown',
+      denomination: commodity?.denomination ?? 'kg',
       regionBiId: null,
-      regionName: regionName,
+      regionName,
       provinceBiId: BI_PROVINCE_LAMPUNG_ID,
       marketTypeId,
       marketTypeName,
@@ -244,8 +302,6 @@ export class ScraperService implements OnModuleInit {
       priceDate,
       source: 'BI Harga Pangan',
     });
-
-    return record;
   }
 
   /**

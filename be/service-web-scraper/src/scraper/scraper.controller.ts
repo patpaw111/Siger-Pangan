@@ -4,9 +4,24 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { SCRAPER_QUEUE } from './scraper.processor';
 
+import { IsOptional, IsString, IsArray, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
+
 class ManualScrapeDto {
+  @IsOptional()
+  @IsString()
   startDate?: string;
+
+  @IsOptional()
+  @IsString()
   endDate?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  @Max(3, { each: true })
+  @Type(() => Number)
   marketTypeIds?: number[];
 }
 
