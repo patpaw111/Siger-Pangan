@@ -46,7 +46,20 @@ services:
       timeout: 3s
       retries: 5
 
-  # ── NestJS: Service Web Scraper ───────────────────────────
+  # ── Adminer — Web GUI untuk lihat database di browser ────
+  adminer:
+    image: adminer:4-standalone
+    container_name: siger-adminer-dev
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN: pepa-linha-dark   # dark theme
+
   service-web-scraper:
     build:
       context: ./be/service-web-scraper

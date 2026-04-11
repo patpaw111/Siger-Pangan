@@ -42,8 +42,8 @@ export class PriceRecord {
   marketTypeName: string;
 
   // Harga
-  @Column({ name: 'price', type: 'decimal', precision: 14, scale: 2, nullable: true })
-  price: number | null; // TypeORM reads decimal as string — parsed in service layer
+  @Column({ name: 'price', type: 'int', nullable: true })
+  price: number | null; // Satuan: Rupiah (IDR) — contoh: 14850 = Rp 14.850/kg
 
   @Column({ name: 'price_type', length: 30, default: 'harga' })
   priceType: string; // 'harga', 'harga_tertinggi', 'harga_terendah', 'harga_rata_rata'

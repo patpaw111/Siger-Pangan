@@ -358,10 +358,23 @@ export class ScraperService implements OnModuleInit {
     return null;
   }
 
+  /**
+   * Parse harga dari format angka BI (Indonesia) ke number rupiah.
+   *
+   * Format angka BI:
+   *   "14,850"  → Rp 14.850  → 14850
+   *   "135,000" → Rp 135.000 → 135000
+   *   "-"       → null (tidak ada data)
+   *
+   * Koma (,) = pemisah ribuan (BUKAN desimal) di format BI!
+   */
   private parsePrice(rawPrice: string): number | null {
-    if (!rawPrice || rawPrice === '-' || rawPrice === '') return null;
-    const cleaned = rawPrice.replace(/\./g, '').replace(',', '.').replace(/[^0-9.]/g, '');
-    const num = parseFloat(cleaned);
+    if (!rawPrice || rawPrice === '-' || rawPrice.trim() === '') return null;
+
+    // Hapus koma dan titik karena keduanya digunakan sebagai pemisah ribuan di BI
+    // Contoh: "14,850" → "14850" | "1.234.567" → "1234567"
+    const cleaned = rawPrice.replace(/[.,]/g, '').replace(/[^0-9]/g, '');
+    const num = parseInt(cleaned, 10);
     return isNaN(num) ? null : num;
   }
 
