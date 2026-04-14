@@ -1,0 +1,905 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Siger Pangan — Service Web Scraper API",
+    "description": "API untuk mengakses data harga pangan Provinsi Lampung yang bersumber dari Bank Indonesia (BI Harga Pangan). Service ini menyediakan endpoint harga komoditas, histori harga, dan manajemen job scraping.\n\n**Base URL:** `http://localhost:3000/api/v1`\n\n**Sumber Data:** [BI Harga Pangan](https://www.bi.go.id/hargapangan)\n\n**Jenis Pasar:**\n| ID | Nama |\n|----|------|\n| 1  | Pasar Tradisional |\n| 2  | Pasar Modern |\n| 3  | Pedagang Besar |",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Siger Pangan Dev",
+      "url": "https://github.com/patpaw111/Siger-Pangan"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Local Development"
+    },
+    {
+      "url": "https://api.sigerpangan.id/api/v1",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Harga",
+      "description": "Endpoint data harga pangan komoditas Lampung"
+    },
+    {
+      "name": "Scraper",
+      "description": "Endpoint manajemen job scraping (Admin only)"
+    }
+  ],
+  "paths": {
+    "/prices/latest": {
+      "get": {
+        "tags": ["Harga"],
+        "summary": "Harga terbaru semua komoditas",
+        "description": "Mengembalikan harga terbaru untuk setiap komoditas per kabupaten/kota. Data di-cache di Redis selama **1 jam**. Cocok untuk tampilan dashboard utama Flutter.",
+        "operationId": "getLatestPrices",
+        "parameters": [
+          {
+            "name": "marketTypeId",
+            "in": "query",
+            "description": "Jenis pasar: `1`=Tradisional, `2`=Modern, `3`=Pedagang Besar",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2, 3],
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "kabupaten",
+            "in": "query",
+            "description": "Filter berdasarkan nama kabupaten/kota (partial match, case-insensitive). Contoh: `bandar lampung`, `pringsewu`",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Bandar Lampung"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil mengambil data harga terbaru",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceListResponse"
+                },
+                "examples": {
+                  "tradisional-all": {
+                    "summary": "Semua kabupaten, pasar tradisional",
+                    "value": {
+                      "success": true,
+                      "total": 2,
+                      "data": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "commodityBiId": "com_3",
+                          "commodityName": "Beras Kualitas Medium I",
+                          "categoryBiId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg",
+                          "regionBiId": 1801,
+                          "regionName": "Bandar Lampung",
+                          "provinceBiId": 10,
+                          "marketTypeId": 1,
+                          "marketTypeName": "Pasar Tradisional",
+                          "price": 13500,
+                          "priceType": "harga",
+                          "priceDate": "2026-04-10",
+                          "source": "BI Harga Pangan",
+                          "isValidated": false,
+                          "scrapedAt": "2026-04-11T06:00:00.000Z"
+                        },
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440001",
+                          "commodityBiId": "com_3",
+                          "commodityName": "Beras Kualitas Medium I",
+                          "categoryBiId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg",
+                          "regionBiId": 1802,
+                          "regionName": "Pringsewu",
+                          "provinceBiId": 10,
+                          "marketTypeId": 1,
+                          "marketTypeName": "Pasar Tradisional",
+                          "price": 13200,
+                          "priceType": "harga",
+                          "priceDate": "2026-04-10",
+                          "source": "BI Harga Pangan",
+                          "isValidated": false,
+                          "scrapedAt": "2026-04-11T06:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prices/history": {
+      "get": {
+        "tags": ["Harga"],
+        "summary": "Histori harga satu komoditas",
+        "description": "Mengambil histori harga satu komoditas dalam rentang hari tertentu. Data terurut dari yang paling lama ke terbaru. Cocok untuk **chart tren harga** di Flutter. Data di-cache Redis selama **1 jam**.",
+        "operationId": "getPriceHistory",
+        "parameters": [
+          {
+            "name": "commodityId",
+            "in": "query",
+            "description": "ID komoditas dari BI API (contoh: `com_3`). Gunakan salah satu dari `commodityId` atau `commodityName`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "com_3"
+            }
+          },
+          {
+            "name": "commodityName",
+            "in": "query",
+            "description": "Nama komoditas (partial match). Contoh: `Beras Medium`, `Cabai Rawit`.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Beras Kualitas Medium I"
+            }
+          },
+          {
+            "name": "marketTypeId",
+            "in": "query",
+            "description": "Jenis pasar: `1`=Tradisional, `2`=Modern, `3`=Pedagang Besar",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2, 3],
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "kabupaten",
+            "in": "query",
+            "description": "Filter kabupaten/kota (partial match).",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "Bandar Lampung"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Berapa hari ke belakang dari hari ini (default: 30, max rekomendasi: 365).",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 30,
+              "minimum": 1,
+              "maximum": 730,
+              "example": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil mengambil histori harga",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PriceListResponse"
+                },
+                "examples": {
+                  "beras-30hari": {
+                    "summary": "Histori beras medium 30 hari, Bandar Lampung",
+                    "value": {
+                      "success": true,
+                      "total": 30,
+                      "data": [
+                        {
+                          "id": "550e8400-e29b-41d4-a716-446655440000",
+                          "commodityBiId": "com_3",
+                          "commodityName": "Beras Kualitas Medium I",
+                          "categoryBiId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg",
+                          "regionBiId": 1801,
+                          "regionName": "Bandar Lampung",
+                          "provinceBiId": 10,
+                          "marketTypeId": 1,
+                          "marketTypeName": "Pasar Tradisional",
+                          "price": 13500,
+                          "priceType": "harga",
+                          "priceDate": "2026-04-10",
+                          "source": "BI Harga Pangan",
+                          "isValidated": false,
+                          "scrapedAt": "2026-04-11T06:00:00.000Z"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prices/compare": {
+      "get": {
+        "tags": ["Harga"],
+        "summary": "Perbandingan harga antar kabupaten",
+        "description": "Membandingkan harga satu komoditas di seluruh kabupaten/kota Lampung pada tanggal tertentu. Jika hari ini belum ada data, akan diambil dari **7 hari sebelumnya** sebagai fallback. Cocok untuk **peta panas (heat map)** di Flutter. Cache Redis: **30 menit**.",
+        "operationId": "comparePricesByRegion",
+        "parameters": [
+          {
+            "name": "commodityId",
+            "in": "query",
+            "description": "ID komoditas BI (wajib). Contoh: `com_3` untuk Beras Kualitas Medium I.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "com_3"
+            }
+          },
+          {
+            "name": "marketTypeId",
+            "in": "query",
+            "description": "Jenis pasar: `1`=Tradisional, `2`=Modern, `3`=Pedagang Besar",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "enum": [1, 2, 3],
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "date",
+            "in": "query",
+            "description": "Tanggal perbandingan format `YYYY-MM-DD`. Default: hari ini.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2026-04-10"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Berhasil mengambil data perbandingan harga per kabupaten",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompareResponse"
+                },
+                "examples": {
+                  "beras-compare": {
+                    "summary": "Perbandingan harga beras medium antar kabupaten",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "regionName": "Bandar Lampung",
+                          "price": 13500,
+                          "priceDate": "2026-04-10",
+                          "denomination": "kg"
+                        },
+                        {
+                          "regionName": "Pringsewu",
+                          "price": 13200,
+                          "priceDate": "2026-04-10",
+                          "denomination": "kg"
+                        },
+                        {
+                          "regionName": "Metro",
+                          "price": 13800,
+                          "priceDate": "2026-04-10",
+                          "denomination": "kg"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prices/commodities": {
+      "get": {
+        "tags": ["Harga"],
+        "summary": "Daftar komoditas yang tersedia",
+        "description": "Mengembalikan semua komoditas yang datanya ada di database. Cache Redis: **24 jam**. Gunakan endpoint ini untuk mengisi dropdown/picker komoditas di Flutter.",
+        "operationId": "getAvailableCommodities",
+        "responses": {
+          "200": {
+            "description": "Daftar komoditas berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommodityListResponse"
+                },
+                "examples": {
+                  "commodities": {
+                    "summary": "Daftar komoditas",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        {
+                          "id": "com_1",
+                          "name": "Beras Kualitas Super",
+                          "categoryId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg"
+                        },
+                        {
+                          "id": "com_2",
+                          "name": "Beras Kualitas Medium II",
+                          "categoryId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg"
+                        },
+                        {
+                          "id": "com_3",
+                          "name": "Beras Kualitas Medium I",
+                          "categoryId": "cat_1",
+                          "categoryName": "Beras",
+                          "denomination": "kg"
+                        },
+                        {
+                          "id": "com_10",
+                          "name": "Cabai Merah Keriting",
+                          "categoryId": "cat_3",
+                          "categoryName": "Cabai",
+                          "denomination": "kg"
+                        },
+                        {
+                          "id": "com_11",
+                          "name": "Cabai Rawit Merah",
+                          "categoryId": "cat_3",
+                          "categoryName": "Cabai",
+                          "denomination": "kg"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prices/regions": {
+      "get": {
+        "tags": ["Harga"],
+        "summary": "Daftar kabupaten/kota yang tersedia",
+        "description": "Mengembalikan semua nama kabupaten/kota Lampung yang datanya ada di database. Cache Redis: **24 jam**. Gunakan untuk mengisi dropdown wilayah di Flutter.",
+        "operationId": "getAvailableRegions",
+        "responses": {
+          "200": {
+            "description": "Daftar kabupaten/kota berhasil diambil",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegionListResponse"
+                },
+                "examples": {
+                  "regions": {
+                    "summary": "Kabupaten/kota Lampung",
+                    "value": {
+                      "success": true,
+                      "data": [
+                        "Bandar Lampung",
+                        "Metro",
+                        "Lampung Barat",
+                        "Lampung Selatan",
+                        "Lampung Tengah",
+                        "Lampung Timur",
+                        "Lampung Utara",
+                        "Mesuji",
+                        "Pesawaran",
+                        "Pesisir Barat",
+                        "Pringsewu",
+                        "Tanggamus",
+                        "Tulang Bawang",
+                        "Tulang Bawang Barat",
+                        "Way Kanan"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraper/trigger": {
+      "post": {
+        "tags": ["Scraper"],
+        "summary": "Trigger scraping manual",
+        "description": "Menambahkan job scraping baru ke antrian BullMQ dengan prioritas tertinggi. Job akan diproses oleh worker secara async — endpoint ini hanya mendaftarkan job, bukan menunggu selesai. Gunakan `GET /scraper/status` untuk memantau progress.\n\n> ⚠️ **Catatan:** Endpoint ini sebaiknya dilindungi oleh Auth Guard di production.",
+        "operationId": "triggerManualScrape",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManualScrapeDto"
+              },
+              "examples": {
+                "scrape-7hari": {
+                  "summary": "Scrape 7 hari terakhir, semua pasar",
+                  "value": {
+                    "startDate": "2026-04-04",
+                    "endDate": "2026-04-11",
+                    "marketTypeIds": [1, 2, 3]
+                  }
+                },
+                "scrape-tradisional": {
+                  "summary": "Scrape 30 hari, pasar tradisional saja",
+                  "value": {
+                    "startDate": "2026-03-12",
+                    "endDate": "2026-04-11",
+                    "marketTypeIds": [1]
+                  }
+                },
+                "scrape-default": {
+                  "summary": "Tanpa body — gunakan default (semua pasar, 2 tahun)",
+                  "value": {}
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job scraping berhasil dijadwalkan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerScrapeResponse"
+                },
+                "example": {
+                  "success": true,
+                  "message": "Scraping dijadwalkan. Cek status di /scraper/status",
+                  "jobId": "42"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraper/status": {
+      "get": {
+        "tags": ["Scraper"],
+        "summary": "Status antrian scraping",
+        "description": "Mengembalikan statistik jumlah job di antrian BullMQ beserta detail job yang sedang aktif dan job terakhir yang selesai.",
+        "operationId": "getScraperStatus",
+        "responses": {
+          "200": {
+            "description": "Status antrian scraping",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScraperStatusResponse"
+                },
+                "examples": {
+                  "idle": {
+                    "summary": "Antrian kosong (idle)",
+                    "value": {
+                      "queue": {
+                        "waiting": 0,
+                        "active": 0,
+                        "completed": 12,
+                        "failed": 1,
+                        "delayed": 0
+                      },
+                      "activeJobs": [],
+                      "lastCompletedJob": {
+                        "id": "41",
+                        "finishedOn": 1712822400000,
+                        "returnValue": null
+                      }
+                    }
+                  },
+                  "running": {
+                    "summary": "Sedang ada job berjalan",
+                    "value": {
+                      "queue": {
+                        "waiting": 1,
+                        "active": 1,
+                        "completed": 12,
+                        "failed": 0,
+                        "delayed": 0
+                      },
+                      "activeJobs": [
+                        {
+                          "id": "42",
+                          "name": "manual-scrape",
+                          "progress": 45,
+                          "data": {
+                            "marketTypeIds": [1, 2, 3],
+                            "startDate": "2026-04-04T00:00:00.000Z",
+                            "endDate": "2026-04-11T00:00:00.000Z",
+                            "chunkDays": 30,
+                            "triggeredBy": "api"
+                          },
+                          "processedOn": 1712822000000
+                        }
+                      ],
+                      "lastCompletedJob": null
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PriceRecord": {
+        "type": "object",
+        "description": "Entity data harga satu komoditas di satu kabupaten pada satu tanggal",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Primary key UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "commodityBiId": {
+            "type": "string",
+            "description": "ID komoditas dari BI API (format: `com_1` ~ `com_21`)",
+            "example": "com_3"
+          },
+          "commodityName": {
+            "type": "string",
+            "description": "Nama komoditas lengkap",
+            "example": "Beras Kualitas Medium I"
+          },
+          "categoryBiId": {
+            "type": "string",
+            "description": "ID kategori dari BI API (format: `cat_1` ~ `cat_10`)",
+            "example": "cat_1"
+          },
+          "categoryName": {
+            "type": "string",
+            "description": "Nama kategori komoditas",
+            "example": "Beras"
+          },
+          "denomination": {
+            "type": "string",
+            "description": "Satuan harga",
+            "example": "kg",
+            "enum": ["kg", "liter", "butir", "ikat", "gram"]
+          },
+          "regionBiId": {
+            "type": "integer",
+            "nullable": true,
+            "description": "ID kabupaten dari BI API",
+            "example": 1801
+          },
+          "regionName": {
+            "type": "string",
+            "nullable": true,
+            "description": "Nama kabupaten/kota",
+            "example": "Bandar Lampung"
+          },
+          "provinceBiId": {
+            "type": "integer",
+            "description": "ID provinsi (10 = Lampung)",
+            "example": 10
+          },
+          "marketTypeId": {
+            "type": "integer",
+            "description": "Jenis pasar: 1=Tradisional, 2=Modern, 3=Pedagang Besar",
+            "example": 1
+          },
+          "marketTypeName": {
+            "type": "string",
+            "description": "Nama jenis pasar",
+            "example": "Pasar Tradisional"
+          },
+          "price": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Harga dalam Rupiah bulat (IDR)",
+            "example": 13500
+          },
+          "priceType": {
+            "type": "string",
+            "description": "Tipe harga",
+            "example": "harga",
+            "enum": ["harga", "harga_tertinggi", "harga_terendah", "harga_rata_rata"]
+          },
+          "priceDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal harga berlaku (format: YYYY-MM-DD)",
+            "example": "2026-04-10"
+          },
+          "source": {
+            "type": "string",
+            "description": "Sumber data",
+            "example": "BI Harga Pangan"
+          },
+          "isValidated": {
+            "type": "boolean",
+            "description": "Apakah data sudah divalidasi secara manual",
+            "example": false
+          },
+          "scrapedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu data discrape",
+            "example": "2026-04-11T06:00:00.000Z"
+          }
+        }
+      },
+      "PriceListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "total": {
+            "type": "integer",
+            "description": "Jumlah record yang dikembalikan",
+            "example": 42
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PriceRecord"
+            }
+          }
+        }
+      },
+      "CompareItem": {
+        "type": "object",
+        "description": "Harga satu komoditas di satu kabupaten (untuk endpoint compare)",
+        "properties": {
+          "regionName": {
+            "type": "string",
+            "example": "Bandar Lampung"
+          },
+          "price": {
+            "type": "integer",
+            "nullable": true,
+            "example": 13500
+          },
+          "priceDate": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-04-10"
+          },
+          "denomination": {
+            "type": "string",
+            "example": "kg"
+          }
+        }
+      },
+      "CompareResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CompareItem"
+            }
+          }
+        }
+      },
+      "CommodityItem": {
+        "type": "object",
+        "description": "Informasi komoditas (tanpa data harga)",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "ID komoditas BI (gunakan ini di query params)",
+            "example": "com_3"
+          },
+          "name": {
+            "type": "string",
+            "description": "Nama lengkap komoditas",
+            "example": "Beras Kualitas Medium I"
+          },
+          "categoryId": {
+            "type": "string",
+            "example": "cat_1"
+          },
+          "categoryName": {
+            "type": "string",
+            "example": "Beras"
+          },
+          "denomination": {
+            "type": "string",
+            "example": "kg"
+          }
+        }
+      },
+      "CommodityListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommodityItem"
+            }
+          }
+        }
+      },
+      "RegionListResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "example": ["Bandar Lampung", "Metro", "Pringsewu", "Tanggamus"]
+          }
+        }
+      },
+      "ManualScrapeDto": {
+        "type": "object",
+        "description": "Parameter untuk trigger scraping manual. Semua field opsional — jika tidak diisi, akan scrape semua pasar 2 tahun terakhir.",
+        "properties": {
+          "startDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal mulai range scraping (YYYY-MM-DD). Default: 2 tahun lalu.",
+            "example": "2026-04-04"
+          },
+          "endDate": {
+            "type": "string",
+            "format": "date",
+            "description": "Tanggal akhir range scraping (YYYY-MM-DD). Default: hari ini.",
+            "example": "2026-04-11"
+          },
+          "marketTypeIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "enum": [1, 2, 3]
+            },
+            "description": "Jenis pasar yang di-scrape. Default: [1, 2, 3] (semua).",
+            "example": [1, 2, 3]
+          }
+        }
+      },
+      "TriggerScrapeResponse": {
+        "type": "object",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "example": true
+          },
+          "message": {
+            "type": "string",
+            "example": "Scraping dijadwalkan. Cek status di /scraper/status"
+          },
+          "jobId": {
+            "type": "string",
+            "description": "ID job BullMQ yang dibuat. Gunakan untuk tracking.",
+            "example": "42"
+          }
+        }
+      },
+      "ActiveJobInfo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "example": "42"
+          },
+          "name": {
+            "type": "string",
+            "example": "manual-scrape",
+            "enum": ["daily-scrape", "weekly-backfill", "manual-scrape"]
+          },
+          "progress": {
+            "type": "number",
+            "description": "Persentase progress (0–100)",
+            "example": 45
+          },
+          "data": {
+            "$ref": "#/components/schemas/ManualScrapeDto"
+          },
+          "processedOn": {
+            "type": "integer",
+            "description": "Unix timestamp (ms) saat job mulai diproses",
+            "example": 1712822000000
+          }
+        }
+      },
+      "ScraperStatusResponse": {
+        "type": "object",
+        "properties": {
+          "queue": {
+            "type": "object",
+            "properties": {
+              "waiting": {
+                "type": "integer",
+                "description": "Jumlah job menunggu di antrian",
+                "example": 0
+              },
+              "active": {
+                "type": "integer",
+                "description": "Jumlah job sedang diproses",
+                "example": 1
+              },
+              "completed": {
+                "type": "integer",
+                "description": "Total job selesai (berhasil)",
+                "example": 12
+              },
+              "failed": {
+                "type": "integer",
+                "description": "Total job gagal",
+                "example": 0
+              },
+              "delayed": {
+                "type": "integer",
+                "description": "Job yang ditunda (scheduled di masa depan)",
+                "example": 0
+              }
+            }
+          },
+          "activeJobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActiveJobInfo"
+            }
+          },
+          "lastCompletedJob": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string",
+                "example": "41"
+              },
+              "finishedOn": {
+                "type": "integer",
+                "description": "Unix timestamp (ms) saat job selesai",
+                "example": 1712822400000
+              },
+              "returnValue": {
+                "nullable": true,
+                "example": null
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
