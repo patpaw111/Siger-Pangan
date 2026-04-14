@@ -14,17 +14,18 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies terlebih dahulu (layer caching)
-COPY requirements.txt .
+# Install Python dependencies terlebih dahulu (layer caching)
+COPY be/service-nlp/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Download model spaCy multilingual (support Bahasa Indonesia)
 RUN python -m spacy download xx_ent_wiki_sm
 
-# Copy source code
-COPY . .
+# Copy source code dan proto
+COPY be/service-nlp/ ./
+COPY proto/ ./proto/
 
 # Generate gRPC Python bindings dari .proto
-# (File .proto sudah di-copy ke direktori ini saat build)
 RUN python -m grpc_tools.protoc \
     -I./proto \
     --python_out=./app/grpc_generated \

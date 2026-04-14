@@ -33,8 +33,8 @@ services:
   # ──────────────────────────────────────────────
   service-nestjs:
     build:
-      context: ./be/service-web-scraper
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./be/service-web-scraper/Dockerfile
     container_name: siger-nestjs
     env_file:
       - ./be/service-web-scraper/.env
@@ -56,8 +56,8 @@ services:
   # ──────────────────────────────────────────────
   service-fastapi:
     build:
-      context: ./be/service-nlp
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./be/service-nlp/Dockerfile
     container_name: siger-fastapi
     env_file:
       - ./be/service-nlp/.env

@@ -60,10 +60,25 @@ services:
       ADMINER_DEFAULT_SERVER: postgres
       ADMINER_DESIGN: pepa-linha-dark   # dark theme
 
+  service-nlp:
+    build:
+      context: .
+      dockerfile: ./be/service-nlp/Dockerfile
+    container_name: siger-nlp-dev
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+      - "8000:8000"
+    volumes:
+      - ./be/service-nlp/app:/app/app
+      - ./proto:/app/proto
+      - /app/app/grpc_generated  # prevent overwriting generated from build
+
+
   service-web-scraper:
     build:
-      context: ./be/service-web-scraper
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./be/service-web-scraper/Dockerfile
       target: development           # Pakai stage 'development' (hot-reload)
     container_name: siger-web-scraper-dev
     restart: unless-stopped
@@ -74,6 +89,8 @@ services:
     volumes:
       # Mount source code → perubahan kode langsung hot-reload
       - ./be/service-web-scraper/src:/app/src
+      # Mount proto (digunakan gRPC client)
+      - ./proto:/app/proto
       # Jangan mount node_modules (gunakan yang di dalam container)
       - /app/node_modules
     depends_on:

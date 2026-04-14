@@ -9,10 +9,11 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 # Install semua deps (termasuk devDependencies yang dibutuhkan NestJS CLI)
-COPY package*.json ./
+COPY be/service-web-scraper/package*.json ./
 RUN npm ci
 
-COPY . .
+COPY be/service-web-scraper/ .
+COPY proto/ ./proto/
 
 
 # ── Stage: development (hot-reload via nest start --watch) ───
@@ -57,6 +58,8 @@ WORKDIR /app
 COPY --from=builder /app/dist        ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+# Pastikan proto folder juga ikut disalin agar runtime tahu
+COPY --from=builder /app/proto ./proto
 
 EXPOSE 3000
 

@@ -11,6 +11,7 @@ import { ScraperModule } from './scraper/scraper.module';
 import { PriceModule } from './price/price.module';
 import { PriceRecord } from './price/entities/price-record.entity';
 import { ScraperRun } from './scraper/entities/scraper-run.entity';
+import { ChatbotModule } from './chatbot/chatbot.module';
 
 @Module({
   imports: [
@@ -67,6 +68,7 @@ import { ScraperRun } from './scraper/entities/scraper-run.entity';
     // ── 6. Feature Modules ─────────────────────────────────
     ScraperModule,
     PriceModule,
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [AppService],
