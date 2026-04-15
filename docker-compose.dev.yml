@@ -91,7 +91,46 @@ services:
       - ./be/service-web-scraper/src:/app/src
       # Mount proto (digunakan gRPC client)
       - ./proto:/app/proto
-      # Jangan mount node_modules (gunakan yang di dalam container)
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  service-auth:
+    build:
+      context: ./be/service-auth
+      dockerfile: Dockerfile
+      target: development
+    container_name: siger-auth-dev
+    restart: unless-stopped
+    env_file:
+      - ./be/service-auth/.env
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./be/service-auth/src:/app/src
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  service-catalog:
+    build:
+      context: ./be/service-catalog
+      dockerfile: Dockerfile
+      target: development
+    container_name: siger-catalog-dev
+    restart: unless-stopped
+    env_file:
+      - ./be/service-catalog/.env
+    ports:
+      - "3002:3000"
+    volumes:
+      - ./be/service-catalog/src:/app/src
       - /app/node_modules
     depends_on:
       postgres:
