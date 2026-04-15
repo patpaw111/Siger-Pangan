@@ -70,9 +70,9 @@ services:
       - "50051:50051"
       - "8000:8000"
     volumes:
-      - ./be/service-nlp/app:/app/app
+      # NOTE: Tidak pakai bind mount untuk app/ agar tidak menimpa grpc_generated yang di-generate saat build.
+      # Kalau ada perubahan kode Python, rebuild image dengan: docker compose up --build service-nlp
       - ./proto:/app/proto
-      - /app/app/grpc_generated  # prevent overwriting generated from build
 
 
   service-web-scraper:
@@ -105,3 +105,5 @@ volumes:
     name: siger-postgres-dev-data
   redis_dev_data:
     name: siger-redis-dev-data
+  nlp_grpc_generated:
+    name: siger-nlp-grpc-generated

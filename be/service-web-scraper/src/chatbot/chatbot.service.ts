@@ -1,5 +1,5 @@
 import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
-import { ClientGrpc, RpcException } from '@nestjs/microservices';
+import type { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
 import { PriceService } from '../price/price.service';
 
