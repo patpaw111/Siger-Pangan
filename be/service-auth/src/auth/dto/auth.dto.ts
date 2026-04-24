@@ -10,9 +10,20 @@ export class RegisterDto {
   @MinLength(6, { message: 'Password minimal 6 karakter' })
   password: string;
 
-  @IsOptional()
+}
+
+export class AdminCreateUserDto {
+  @IsEmail({}, { message: 'Format email tidak valid' })
+  @IsNotEmpty({ message: 'Email tidak boleh kosong' })
+  email: string;
+
+  @IsNotEmpty({ message: 'Password tidak boleh kosong' })
+  @MinLength(6, { message: 'Password minimal 6 karakter' })
+  password: string;
+
+  @IsNotEmpty({ message: 'Role tidak boleh kosong' })
   @IsEnum(Role, { message: 'Role tidak valid' })
-  role?: Role;
+  role: Role;
 }
 
 export class LoginDto {

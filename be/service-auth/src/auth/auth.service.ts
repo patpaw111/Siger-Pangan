@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/co
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { RegisterDto, LoginDto, AdminCreateUserDto } from './dto/auth.dto';
 import { Role } from '../users/entities/user.entity';
 
 @Injectable()
@@ -24,7 +24,26 @@ export class AuthService {
     const user = await this.usersService.create({
       email: registerDto.email,
       password_hash,
-      role: registerDto.role || Role.USER,
+      role: Role.USER, // Selalu paksa menjadi USER untuk registrasi publik
+    });
+
+    const { password_hash: _, ...result } = user;
+    return result;
+  }
+
+  async adminCreateUser(adminCreateUserDto: AdminCreateUserDto) {
+    const existingUser = await this.usersService.findByEmail(adminCreateUserDto.email);
+    if (existingUser) {
+      throw new ConflictException('Email sudah terdaftar');
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const password_hash = await bcrypt.hash(adminCreateUserDto.password, salt);
+
+    const user = await this.usersService.create({
+      email: adminCreateUserDto.email,
+      password_hash,
+      role: adminCreateUserDto.role,
     });
 
     const { password_hash: _, ...result } = user;
