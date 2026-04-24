@@ -1,34 +1,45 @@
-
 # Siger Pangan 🌾
 **Platform Informasi Harga Pangan — Provinsi Lampung**
 
-> Microservices architecture untuk memantau harga pangan real-time, dilengkapi chatbot berbasis NLP.
+> *True Microservices Architecture* dengan akses API Publik via Cloudflare Zero Trust Tunnel.
 
 ---
 
-## 🗂️ Struktur Proyek
+## 🗂️ Struktur Proyek (Microservices)
+
+Proyek ini telah bermigrasi dari Monolith ke *True Microservices*, di mana setiap service berjalan secara independen dengan *logical database*-nya masing-masing.
 
 ```
 Siger-Pangan/
-├── docker-compose.yml          ← Semua service production
-├── docker-compose.dev.yml      ← Override untuk development
-├── .env.example                ← Template environment variables root
+├── docker-compose.dev.yml      ← Infrastruktur Utama (Local & Tunnel)
+├── .env                        ← Konfigurasi Root & Token Cloudflare
 │
 ├── be/
-│   ├── service-web-scraper/    ← 🟦 NestJS (Core, Scraper, API Gateway)
-│   └── service-nlp/            ← 🟨 FastAPI (NLP Processor via gRPC)
+│   ├── service-web-scraper/    ← 🟦 NestJS (Port 3000) - API Gateway & Scraper Bot
+│   ├── service-auth/           ← 🟧 NestJS (Port 3001) - Auth, JWT, Admin CMS
+│   ├── service-catalog/        ← 🟩 NestJS (Port 3002) - CRUD Komoditas & Wilayah
+│   └── service-nlp/            ← 🟨 FastAPI (Port 50051) - Chatbot Engine via gRPC
 │
 ├── proto/
-│   └── nlp.proto               ← gRPC contract (single source of truth)
+│   └── nlp.proto               ← gRPC contract untuk service-nlp
 │
-├── nginx/
-│   └── nginx.conf              ← API Gateway config
-│
-└── infra/
-    ├── postgres/init.sql       ← Database schema & seed data
-    ├── prometheus/             ← Metrics config
-    └── grafana/                ← Dashboard & datasource config
+└── docs/                       ← Dokumentasi Tugas & Roadmap Backend
 ```
+
+---
+
+## 🌐 Arsitektur Jaringan & Domain (PENTING UNTUK FRONTEND)
+
+Proyek ini menggunakan **Cloudflare Zero Trust Tunnel** agar Backend yang berjalan di lokal komputer bisa diakses secara Publik dari mana saja tanpa VPS.
+
+**Skema Domain Utama:**
+- **`sigerpangan.my.id`** ➔ Di-hosting di **Vercel** (Untuk Frontend / Website Admin CMS).
+- **`api.sigerpangan.my.id`** ➔ Di-routing via **Cloudflare Tunnel** langsung ke Docker `service-web-scraper` (Backend).
+
+**Base URL untuk Tim Frontend & Mobile:**
+> 👉 **`https://api.sigerpangan.my.id`**
+
+*(Tim Frontend/Mobile wajib memasukkan URL di atas ke dalam file `.env` aplikasi mereka, misalnya sebagai `VITE_BASE_API_URL` atau `API_BASE_URL`)*.
 
 ---
 
@@ -36,114 +47,67 @@ Siger-Pangan/
 
 | Layer | Teknologi | Fungsi |
 |---|---|---|
-| API Gateway | **Nginx** | Load balancing, rate limiting, SSL |
-| Core Service | **NestJS** | REST API, scraping, orchestrator |
-| NLP Service | **FastAPI + gRPC** | Intent classification, entity extraction |
-| Database | **PostgreSQL** | Penyimpanan data utama |
-| Cache | **Redis** | Cache harga, session, BullMQ broker |
-| Job Queue | **BullMQ** | Jadwal & antrian scraping |
-| Scraper | **Playwright** | Web scraping PIHPS Nasional |
-| Search | **MeiliSearch** | Full-text search komoditas |
-| Monitoring | **Prometheus + Grafana** | Health & performance metrics |
-| Container | **Docker** | Isolasi & portabilitas service |
+| API Gateway & Routing | **Cloudflared Tunnel** | Pengganti Nginx, routing HTTPS publik ke lokal |
+| Microservices | **NestJS & FastAPI** | Logika bisnis terpisah (Scraper, Auth, Catalog, NLP) |
+| Database | **PostgreSQL** | *Logical Database* terpisah (`siger_auth`, `siger_catalog`, dll) |
+| Cache & Broker | **Redis** | Cache API dan *Message Broker* antar service |
+| Job Queue | **BullMQ** | Penjadwalan *Scraping* harian (CronJob) |
+| Container | **Docker Compose** | Orkestrasi seluruh service |
 
 ---
 
-## 🚀 Cara Menjalankan
+## 🚀 Cara Menjalankan (Development)
+
+Sistem telah dikonfigurasi agar Anda hanya perlu menjalankan 1 perintah untuk menghidupkan seluruh ekosistem (Database, Cache, Microservices, dan Public Tunnel).
 
 ### Prerequisites
-- Docker Desktop sudah terinstall
-- Git
+1. Docker Desktop harus dalam keadaan aktif (*running*).
+2. Memiliki Token Cloudflare Zero Trust (Sudah terpasang di file `.env`).
 
-### Development (Infra saja via Docker, service di host)
-
-```bash
-# 1. Clone repository
-git clone <repo-url>
-cd Siger-Pangan
-
-# 2. Siapkan environment variables
-cp .env.example .env
-cp be/service-web-scraper/.env.example be/service-web-scraper/.env
-cp be/service-nlp/.env.example be/service-nlp/.env
-
-# 3. Jalankan infrastruktur (PostgreSQL, Redis, MeiliSearch, Prometheus, Grafana)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres redis meilisearch prometheus grafana
-
-# 4. Jalankan NestJS di host
-cd be/service-web-scraper
-npm install
-npm run start:dev
-
-# 5. Jalankan FastAPI di host (terminal baru)
-cd be/service-nlp
-pip install -r requirements.txt
-python -m spacy download xx_ent_wiki_sm
-python -m app.server
-```
-
-### Production (Semua via Docker)
+### Menjalankan Server
+Buka terminal di root folder `Siger-Pangan`, lalu jalankan:
 
 ```bash
-# Build dan jalankan semua service
-docker compose up -d --build
+docker compose -f docker-compose.dev.yml up -d
+```
 
-# Lihat log
-docker compose logs -f service-nestjs
-docker compose logs -f service-fastapi
+### Melihat Log (Penting untuk Debugging)
+Karena semua berjalan di background (`-d`), gunakan perintah berikut untuk melihat error atau status masing-masing service:
+
+```bash
+# Log Web Scraper / Gateway
+docker logs -f siger-web-scraper-dev
+
+# Log Auth Service
+docker logs -f siger-auth-dev
+
+# Log Cloudflare Tunnel (Untuk cek status koneksi domain)
+docker logs -f siger-cloudflare-tunnel
 ```
 
 ---
 
-## 🌐 Endpoint & Dashboard
+## 📊 Akses Internal (Database GUI)
 
-| Service | URL | Keterangan |
-|---|---|---|
-| API (via Nginx) | http://localhost/api/v1/ | REST API utama |
-| NestJS (langsung) | http://localhost:3000 | Dev only |
-| FastAPI Health | http://localhost:8000/health | Dev only |
-| MeiliSearch | http://localhost:7700 | Search engine UI |
-| Grafana | http://localhost:3001 | Monitoring dashboard |
-| Prometheus | http://localhost:9090 | Raw metrics |
+Untuk mengecek isi database secara visual tanpa DBeaver/TablePlus, Anda bisa menggunakan **Adminer** yang sudah ter- *include* di Docker:
 
----
-
-## 📡 Data Flow
-
-```
-[PIHPS Website]
-      ↓ Playwright (Setiap 6 jam via BullMQ CronJob)
-[NestJS Scraper]
-      ↓ Upsert data
-[PostgreSQL] ←→ [Redis Cache]
-      ↓
-[Flutter / Next.js] ← GET /api/v1/prices
-
-[Flutter User Chat]
-      ↓ POST /api/v1/chatbot/message
-[NestJS ChatbotService]
-      ↓ gRPC: AnalyzeMessage()
-[FastAPI NLP]
-      ↓ Intent + Entity
-[NestJS] → Query DB → Format Respons
-      ↓
-[Flutter] ← Jawaban chatbot
-```
+1. Buka browser: `http://localhost:8080`
+2. **System**: PostgreSQL
+3. **Server**: `postgres`
+4. **Username**: `siger_user`
+5. **Password**: `siger_dev_password`
+6. **Database**: Ketik nama database yang ingin dilihat (contoh: `siger_pangan_dev`, `siger_auth_dev`, atau `siger_catalog_dev`).
 
 ---
 
-## 📁 Environment Variables
+## 👥 Branching Strategy (Git)
 
-Setiap service memiliki file `.env.example`. Salin dan isi sebelum menjalankan:
+Proyek ini menggunakan strategi *Feature Branching*.
+- `main` : Kode stabil (Production)
+- `dev/be` : Integrasi antar backend developer
+- `be-feature/*` : Branch pengerjaan fitur. Contoh: `be-feature/admin-cms`
 
-- `/.env.example` — Variabel root (PostgreSQL, Redis, dll)
-- `/be/service-web-scraper/.env.example` — Konfigurasi NestJS
-- `/be/service-nlp/.env.example` — Konfigurasi FastAPI
-
----
-
-## 👥 Kontribusi
-
-1. Buat branch baru: `git checkout -b feature/nama-fitur`
-2. Commit perubahan
-3. Buat Pull Request ke branch `develop`
+**Alur Kerja:**
+1. Pull dari `dev/be` terbaru.
+2. Buat branch baru: `git checkout -b be-feature/nama-fitur`
+3. Push dan buat PR (Pull Request) ke `dev/be`.

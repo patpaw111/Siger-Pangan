@@ -138,6 +138,17 @@ services:
       redis:
         condition: service_healthy
 
+  # ── Cloudflare Tunnel (Opsi 2: Persistent Zero Trust) ────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: siger-cloudflare-tunnel
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
+    depends_on:
+      - service-web-scraper
+      
 # ── Volumes ───────────────────────────────────────────────────
 volumes:
   postgres_dev_data:
