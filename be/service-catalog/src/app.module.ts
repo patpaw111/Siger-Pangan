@@ -3,7 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-
+import { AuthModule } from './auth/auth.module';
+import { CommoditiesModule } from './commodities/commodities.module';
+import { RegionsModule } from './regions/regions.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -20,6 +22,9 @@ import { AppService } from './app.service';
         logging: config.get<string>('NODE_ENV') === 'development',
       }),
     }),
+    AuthModule,
+    CommoditiesModule,
+    RegionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
