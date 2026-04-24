@@ -138,6 +138,20 @@ services:
       redis:
         condition: service_healthy
 
+  # ── Nginx API Gateway ─────────────────────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: siger-nginx-dev
+    restart: unless-stopped
+    ports:
+      - "8081:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - service-web-scraper
+      - service-auth
+      - service-catalog
+
   # ── Cloudflare Tunnel (Opsi 2: Persistent Zero Trust) ────────────
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -147,7 +161,7 @@ services:
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
-      - service-web-scraper
+      - nginx
       
 # ── Volumes ───────────────────────────────────────────────────
 volumes:
