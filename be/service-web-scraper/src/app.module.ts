@@ -12,6 +12,8 @@ import { PriceModule } from './price/price.module';
 import { PriceRecord } from './price/entities/price-record.entity';
 import { ScraperRun } from './scraper/entities/scraper-run.entity';
 import { ChatbotModule } from './chatbot/chatbot.module';
+import { AuthModule } from './auth/auth.module';
+import { MasterDataModule } from './master-data/master-data.module';
 
 @Module({
   imports: [
@@ -69,6 +71,8 @@ import { ChatbotModule } from './chatbot/chatbot.module';
     ScraperModule,
     PriceModule,
     ChatbotModule,
+    AuthModule,
+    MasterDataModule,
   ],
   controllers: [AppController],
   providers: [AppService],
