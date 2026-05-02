@@ -7,6 +7,13 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
 import { Role } from '../users/entities/user.entity';
+import { IsString, IsNotEmpty } from 'class-validator';
+
+class GoogleMobileDto {
+  @IsString()
+  @IsNotEmpty()
+  idToken: string;
+}
 
 @Controller('api/v1/auth')
 export class AuthController {
@@ -36,7 +43,7 @@ export class AuthController {
     return req.user;
   }
 
-  // ─── Google OAuth ──────────────────────────────────────────
+  // ─── Google OAuth (Web — redirect flow) ───────────────────
   @Get('google')
   @UseGuards(AuthGuard('google'))
   async googleAuth() {
@@ -47,7 +54,16 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   async googleAuthCallback(@Request() req: any, @Res() res: any) {
     const token = await this.authService.generateTokenForUser(req.user);
-    // Redirect ke app dengan token, sesuaikan URL deeplink untuk Mobile App
+    // Redirect ke app dengan token via deeplink
     res.redirect(`sigerpangan://auth?token=${token.access_token}`);
+  }
+
+  // ─── Google OAuth (Mobile — native sign-in) ───────────────
+  // Flutter mengirim idToken dari google_sign_in package,
+  // backend verifikasi langsung ke Google tanpa browser redirect.
+  @HttpCode(HttpStatus.OK)
+  @Post('google/mobile')
+  async googleMobileAuth(@Body() dto: GoogleMobileDto) {
+    return this.authService.verifyGoogleIdToken(dto.idToken);
   }
 }
