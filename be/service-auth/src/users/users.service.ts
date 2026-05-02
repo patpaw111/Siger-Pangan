@@ -18,4 +18,49 @@ export class UsersService {
     const newUser = this.usersRepository.create(user);
     return this.usersRepository.save(newUser);
   }
+
+  async findById(id: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { id } });
+  }
+
+  async findOrCreateByGoogle(googleProfile: {
+    google_id: string;
+    email: string;
+    name: string;
+    avatar_url: string;
+  }): Promise<User> {
+    // Cari berdasarkan google_id terlebih dahulu
+    let user = await this.usersRepository.findOne({
+      where: { google_id: googleProfile.google_id },
+    });
+
+    // Jika belum ada, cari berdasarkan email (mungkin sudah punya akun lokal)
+    if (!user) {
+      user = await this.usersRepository.findOne({
+        where: { email: googleProfile.email },
+      });
+
+      if (user) {
+        // Hubungkan akun lokal yang sudah ada dengan Google
+        user.google_id = googleProfile.google_id;
+        user.avatar_url = googleProfile.avatar_url;
+        if (!user.name) user.name = googleProfile.name;
+        return this.usersRepository.save(user);
+      }
+    }
+
+    // Jika sama sekali belum ada, buat user baru dengan Role USER
+    if (!user) {
+      const newUser = this.usersRepository.create({
+        email: googleProfile.email,
+        name: googleProfile.name,
+        avatar_url: googleProfile.avatar_url,
+        google_id: googleProfile.google_id,
+        role: Role.USER,
+      });
+      return this.usersRepository.save(newUser);
+    }
+
+    return user;
+  }
 }
