@@ -1,4 +1,6 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, Res } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AdminCreateUserDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -32,5 +34,20 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req: any) {
     return req.user;
+  }
+
+  // ─── Google OAuth ──────────────────────────────────────────
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  async googleAuth() {
+    // Guard akan menangani redirect ke halaman login Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  async googleAuthCallback(@Request() req: any, @Res() res: any) {
+    const token = await this.authService.generateTokenForUser(req.user);
+    // Redirect ke app dengan token, sesuaikan URL deeplink untuk Mobile App
+    res.redirect(`sigerpangan://auth?token=${token.access_token}`);
   }
 }

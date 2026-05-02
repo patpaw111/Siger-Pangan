@@ -72,4 +72,18 @@ export class AuthService {
       }
     };
   }
+
+  async generateTokenForUser(user: any) {
+    const payload = { sub: user.id, email: user.email, role: user.role };
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatar_url: user.avatar_url,
+        role: user.role,
+      }
+    };
+  }
 }
