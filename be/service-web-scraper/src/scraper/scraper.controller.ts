@@ -3,6 +3,7 @@ import { ScraperScheduler } from './scraper.scheduler';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { SCRAPER_QUEUE } from './scraper.processor';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 
 import { IsOptional, IsString, IsArray, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -40,6 +41,7 @@ export class ScraperController {
    * Trigger scraping manual — hanya untuk admin
    */
   @Post('trigger')
+  @UseGuards(JwtAuthGuard)
   async triggerManual(@Body() dto: ManualScrapeDto) {
     const jobId = await this.scheduler.triggerManualScrape({
       startDate: dto.startDate,
@@ -59,6 +61,7 @@ export class ScraperController {
    * Cek status antrian scraping
    */
   @Get('status')
+  @UseGuards(JwtAuthGuard)
   async getQueueStatus() {
     const [waiting, active, completed, failed, delayed] = await Promise.all([
       this.scraperQueue.getWaitingCount(),
