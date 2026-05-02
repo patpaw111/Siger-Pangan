@@ -350,6 +350,54 @@
         }
       }
     },
+    "/api/v1/auth/google/mobile": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login Google untuk Mobile App (Native, Tanpa Browser)",
+        "description": "**Endpoint utama untuk Flutter.** Menerima `idToken` dari package `google_sign_in` Flutter, memverifikasi ke Google, lalu mengembalikan JWT token.\n\n**Flutter Setup:**\n1. Install `google_sign_in: ^6.2.1`\n2. Gunakan `serverClientId` = Web Client ID\n3. Kirim `auth.idToken` ke endpoint ini\n\nBackend akan otomatis membuat akun user baru jika belum ada (role: USER).",
+        "operationId": "googleMobileAuth",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["idToken"],
+                "properties": {
+                  "idToken": { "type": "string", "description": "idToken dari GoogleSignInAuthentication.idToken", "example": "eyJhbGciOiJSUzI1NiIs..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil. JWT token dan data user dikembalikan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIs..." },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "email": { "type": "string", "example": "user@gmail.com" },
+                        "name": { "type": "string", "example": "John Doe" },
+                        "avatar_url": { "type": "string", "example": "https://lh3.googleusercontent.com/..." },
+                        "role": { "type": "string", "example": "USER" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token Google tidak valid atau kadaluarsa." }
+        }
+      }
+    },
     "/api/v1/catalog/commodities": {
       "get": {
         "tags": ["Catalog - Commodities"],
