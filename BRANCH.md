@@ -30,7 +30,8 @@ git checkout dev/be
 git pull origin dev/be
 git checkout -b be-feature/nama-fitur-kamu
 
-#mobile
+**Contoh untuk Dev/Mobile:**
+```bash
 git checkout dev/mobile
 git pull origin dev/mobile
 git checkout -b mobile-feature/nama-fitur-kamu
