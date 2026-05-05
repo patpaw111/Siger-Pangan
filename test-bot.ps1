@@ -3,7 +3,7 @@ param(
 )
 
 $body = @{ text = $Pertanyaan } | ConvertTo-Json
-$response = Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/v1/chatbot/chat" -ContentType "application/json" -Body $body
+$response = Invoke-RestMethod -Method Post -Uri "https://api.sigerpangan.my.id/api/v1/chatbot/chat" -ContentType "application/json" -Body $body
 
 Write-Host "=============================" -ForegroundColor Cyan
 Write-Host "🤖 Pertanyaan : $Pertanyaan" -ForegroundColor Yellow

@@ -1,0 +1,895 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Siger Pangan API",
+    "description": "Dokumentasi resmi REST API untuk platform **Siger Pangan** — sistem informasi harga komoditas pangan berbasis Microservices.\n\n## Base URL\n- **Production:** `https://api.sigerpangan.my.id`\n- **Local Dev:** `http://localhost:8081`\n\n## Autentikasi\nSemua endpoint yang membutuhkan autentikasi menggunakan **Bearer Token (JWT)**. Sertakan header berikut:\n```\nAuthorization: Bearer <access_token>\n```\nToken JWT didapatkan dari endpoint **POST /api/v1/auth/login**.\n\n## Role Sistem\n| Role | Deskripsi |\n|---|---|\n| `SUPER_ADMIN` | Akses penuh. Manajemen semua data dan user. |\n| `SURVEYOR` | Akses terbatas untuk pencatatan harga pasar. |\n| `USER` | Pengguna umum aplikasi Mobile. |",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Siger Pangan Dev Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.sigerpangan.my.id",
+      "description": "Production Server (via Cloudflare Tunnel → Nginx)"
+    },
+    {
+      "url": "http://localhost:8081",
+      "description": "Local Development Server (via Nginx API Gateway)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Endpoint autentikasi, registrasi, dan manajemen user."
+    },
+    {
+      "name": "Catalog - Commodities",
+      "description": "Master data komoditas pangan (Beras, Cabai, dll). CRUD oleh Admin."
+    },
+    {
+      "name": "Catalog - Regions",
+      "description": "Master data wilayah dan pasar (beserta koordinat GPS). CRUD oleh Admin."
+    },
+    {
+      "name": "Prices",
+      "description": "Data harga pangan real-time dari Bank Indonesia. Scraping otomatis harian."
+    },
+    {
+      "name": "Chatbot",
+      "description": "Asisten AI berbasis NLP untuk menanyakan harga pangan via teks."
+    },
+    {
+      "name": "Scraper Admin",
+      "description": "Endpoint admin untuk trigger dan monitor scraping data harga."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Masukkan JWT Token yang didapat dari endpoint login."
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "admin@sigerpangan.my.id"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "example": "password123"
+          }
+        }
+      },
+      "RegisterRequest": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "user@example.com"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "password123"
+          }
+        }
+      },
+      "AdminCreateUserRequest": {
+        "type": "object",
+        "required": ["email", "password", "role"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "surveyor.tugu@sigerpangan.my.id"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6,
+            "example": "password123"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["SUPER_ADMIN", "SURVEYOR", "USER"],
+            "example": "SURVEYOR"
+          }
+        }
+      },
+      "AuthResponse": {
+        "type": "object",
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string", "format": "uuid", "example": "597f4ef5-e99d-45fd-b725-5c875e86d379" },
+              "email": { "type": "string", "example": "admin@sigerpangan.my.id" },
+              "role": { "type": "string", "example": "SUPER_ADMIN" }
+            }
+          }
+        }
+      },
+      "UserProfile": {
+        "type": "object",
+        "properties": {
+          "userId": { "type": "string", "format": "uuid" },
+          "email": { "type": "string", "format": "email" },
+          "role": { "type": "string", "enum": ["SUPER_ADMIN", "SURVEYOR", "USER"] }
+        }
+      },
+      "Commodity": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
+          "name": { "type": "string", "example": "Beras Premium" },
+          "unit": { "type": "string", "example": "kg" },
+          "image_url": { "type": "string", "nullable": true, "example": "https://example.com/beras.jpg" },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateCommodityRequest": {
+        "type": "object",
+        "required": ["name", "unit"],
+        "properties": {
+          "name": { "type": "string", "example": "Beras Premium" },
+          "unit": { "type": "string", "example": "kg" },
+          "image_url": { "type": "string", "nullable": true, "example": "https://example.com/beras.jpg" }
+        }
+      },
+      "UpdateCommodityRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "Beras Medium" },
+          "unit": { "type": "string", "example": "kg" },
+          "image_url": { "type": "string", "nullable": true }
+        }
+      },
+      "Region": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "example": "b2c3d4e5-f6a7-8901-bcde-f12345678901" },
+          "name": { "type": "string", "example": "Pasar Tugu" },
+          "type": { "type": "string", "enum": ["PROVINCE", "CITY", "REGENCY", "MARKET"], "example": "MARKET" },
+          "latitude": { "type": "number", "format": "float", "nullable": true, "example": -5.4223 },
+          "longitude": { "type": "number", "format": "float", "nullable": true, "example": 105.2589 },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "CreateRegionRequest": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string", "example": "Pasar Tugu" },
+          "type": { "type": "string", "enum": ["PROVINCE", "CITY", "REGENCY", "MARKET"], "example": "MARKET" },
+          "latitude": { "type": "number", "nullable": true, "example": -5.4223 },
+          "longitude": { "type": "number", "nullable": true, "example": 105.2589 }
+        }
+      },
+      "UpdateRegionRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "example": "Pasar Bambu Kuning" },
+          "type": { "type": "string", "enum": ["PROVINCE", "CITY", "REGENCY", "MARKET"] },
+          "latitude": { "type": "number", "nullable": true },
+          "longitude": { "type": "number", "nullable": true }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 401 },
+          "message": { "type": "string", "example": "Unauthorized" }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "statusCode": { "type": "integer", "example": 400 },
+          "message": { "type": "array", "items": { "type": "string" }, "example": ["email must be an email", "password should not be empty"] },
+          "error": { "type": "string", "example": "Bad Request" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registrasi User Baru (Publik / Mobile App)",
+        "description": "Mendaftarkan pengguna baru. Role otomatis dikunci menjadi `USER` meskipun field `role` dikirimkan. Digunakan oleh **Mobile App**.",
+        "operationId": "registerUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User berhasil terdaftar.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "email": { "type": "string" },
+                    "role": { "type": "string", "example": "USER" },
+                    "created_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validasi gagal.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidationError" } } } },
+          "409": { "description": "Email sudah terdaftar.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login (Semua Role)",
+        "description": "Login menggunakan email dan password. Mengembalikan JWT `access_token` yang berlaku selama **1 hari**. Gunakan untuk Website CMS maupun Mobile App.",
+        "operationId": "loginUser",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "examples": {
+                "Super Admin": {
+                  "value": { "email": "admin@sigerpangan.my.id", "password": "password123" }
+                },
+                "User Biasa": {
+                  "value": { "email": "user@example.com", "password": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil. Token JWT dikembalikan.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthResponse" }
+              }
+            }
+          },
+          "400": { "description": "Validasi gagal.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ValidationError" } } } },
+          "401": { "description": "Email atau password salah.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/api/v1/auth/users": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Buat User oleh Admin (SUPER_ADMIN only)",
+        "description": "Endpoint eksklusif untuk membuat akun `SURVEYOR` atau `ADMIN` baru. **Hanya bisa diakses oleh SUPER_ADMIN.** Digunakan di Website CMS.",
+        "operationId": "adminCreateUser",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AdminCreateUserRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User berhasil dibuat oleh Admin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string", "format": "uuid" },
+                    "email": { "type": "string" },
+                    "role": { "type": "string" },
+                    "created_at": { "type": "string", "format": "date-time" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid atau tidak dikirim." },
+          "403": { "description": "Akses ditolak. Role Anda bukan SUPER_ADMIN." },
+          "409": { "description": "Email sudah terdaftar." }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Ambil Profil Diri Sendiri",
+        "description": "Mengembalikan data profil dari user yang sedang login berdasarkan JWT Token. Berguna saat aplikasi pertama kali dibuka.",
+        "operationId": "getMyProfile",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Data profil user.",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/UserProfile" }
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid atau tidak dikirim." }
+        }
+      }
+    },
+    "/api/v1/auth/google": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Login dengan Google (Redirect)",
+        "description": "**Buka di Browser, bukan di Postman/Apidog.** Mengarahkan pengguna ke halaman login Google. Setelah berhasil, Google akan mengarahkan balik ke `/api/v1/auth/google/callback` dan app akan menerima JWT Token via URL deeplink `sigerpangan://auth?token=...`",
+        "operationId": "googleOAuth",
+        "responses": {
+          "302": { "description": "Redirect ke halaman login Google." }
+        }
+      }
+    },
+    "/api/v1/auth/google/mobile": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login Google untuk Mobile App (Native, Tanpa Browser)",
+        "description": "**Endpoint utama untuk Flutter.** Menerima `idToken` dari package `google_sign_in` Flutter, memverifikasi ke Google, lalu mengembalikan JWT token.\n\n**Flutter Setup:**\n1. Install `google_sign_in: ^6.2.1`\n2. Gunakan `serverClientId` = Web Client ID\n3. Kirim `auth.idToken` ke endpoint ini\n\nBackend akan otomatis membuat akun user baru jika belum ada (role: USER).",
+        "operationId": "googleMobileAuth",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["idToken"],
+                "properties": {
+                  "idToken": { "type": "string", "description": "idToken dari GoogleSignInAuthentication.idToken", "example": "eyJhbGciOiJSUzI1NiIs..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil. JWT token dan data user dikembalikan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "access_token": { "type": "string", "example": "eyJhbGciOiJIUzI1NiIs..." },
+                    "user": {
+                      "type": "object",
+                      "properties": {
+                        "id": { "type": "string", "format": "uuid" },
+                        "email": { "type": "string", "example": "user@gmail.com" },
+                        "name": { "type": "string", "example": "John Doe" },
+                        "avatar_url": { "type": "string", "example": "https://lh3.googleusercontent.com/..." },
+                        "role": { "type": "string", "example": "USER" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token Google tidak valid atau kadaluarsa." }
+        }
+      }
+    },
+    "/api/v1/catalog/commodities": {
+      "get": {
+        "tags": ["Catalog - Commodities"],
+        "summary": "Ambil Semua Komoditas",
+        "description": "Mengembalikan daftar semua komoditas pangan yang tersedia, diurutkan berdasarkan nama (A-Z). Dapat diakses oleh semua user yang sudah login.",
+        "operationId": "getAllCommodities",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Daftar komoditas berhasil diambil.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Commodity" }
+                },
+                "example": [
+                  { "id": "a1b2c3d4-...", "name": "Beras Premium", "unit": "kg", "image_url": null, "created_at": "2026-04-24T06:42:09.000Z", "updated_at": "2026-04-24T06:42:09.000Z" },
+                  { "id": "b2c3d4e5-...", "name": "Cabai Merah Keriting", "unit": "kg", "image_url": null, "created_at": "2026-04-24T06:42:09.000Z", "updated_at": "2026-04-24T06:42:09.000Z" }
+                ]
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid atau tidak dikirim." }
+        }
+      },
+      "post": {
+        "tags": ["Catalog - Commodities"],
+        "summary": "Tambah Komoditas Baru (SUPER_ADMIN only)",
+        "operationId": "createCommodity",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateCommodityRequest" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Komoditas berhasil ditambahkan.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Commodity" } } } },
+          "400": { "description": "Validasi gagal." },
+          "401": { "description": "Token tidak valid." },
+          "403": { "description": "Akses ditolak. Bukan SUPER_ADMIN." }
+        }
+      }
+    },
+    "/api/v1/catalog/commodities/{id}": {
+      "get": {
+        "tags": ["Catalog - Commodities"],
+        "summary": "Ambil Detail Komoditas",
+        "operationId": "getCommodityById",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" }, "example": "a1b2c3d4-e5f6-7890-abcd-ef1234567890" }
+        ],
+        "responses": {
+          "200": { "description": "Detail komoditas.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Commodity" } } } },
+          "401": { "description": "Token tidak valid." },
+          "404": { "description": "Komoditas tidak ditemukan." }
+        }
+      },
+      "patch": {
+        "tags": ["Catalog - Commodities"],
+        "summary": "Update Komoditas (SUPER_ADMIN only)",
+        "operationId": "updateCommodity",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateCommodityRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Komoditas berhasil diupdate.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Commodity" } } } },
+          "403": { "description": "Akses ditolak." },
+          "404": { "description": "Komoditas tidak ditemukan." }
+        }
+      },
+      "delete": {
+        "tags": ["Catalog - Commodities"],
+        "summary": "Hapus Komoditas (SUPER_ADMIN only)",
+        "operationId": "deleteCommodity",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Komoditas berhasil dihapus." },
+          "403": { "description": "Akses ditolak." },
+          "404": { "description": "Komoditas tidak ditemukan." }
+        }
+      }
+    },
+    "/api/v1/catalog/regions": {
+      "get": {
+        "tags": ["Catalog - Regions"],
+        "summary": "Ambil Semua Wilayah/Pasar",
+        "description": "Mengembalikan daftar semua wilayah dan pasar, diurutkan berdasarkan tipe lalu nama. Termasuk koordinat GPS untuk fitur peta Mobile App.",
+        "operationId": "getAllRegions",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Daftar wilayah berhasil diambil.",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Region" } }
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid." }
+        }
+      },
+      "post": {
+        "tags": ["Catalog - Regions"],
+        "summary": "Tambah Wilayah/Pasar Baru (SUPER_ADMIN only)",
+        "operationId": "createRegion",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateRegionRequest" },
+              "examples": {
+                "Pasar": {
+                  "value": { "name": "Pasar Tugu", "type": "MARKET", "latitude": -5.4223, "longitude": 105.2589 }
+                },
+                "Kota (tanpa koordinat)": {
+                  "value": { "name": "Kota Bandar Lampung", "type": "CITY" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Wilayah berhasil ditambahkan.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Region" } } } },
+          "400": { "description": "Validasi gagal." },
+          "403": { "description": "Akses ditolak." }
+        }
+      }
+    },
+    "/api/v1/catalog/regions/{id}": {
+      "get": {
+        "tags": ["Catalog - Regions"],
+        "summary": "Ambil Detail Wilayah",
+        "operationId": "getRegionById",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Detail wilayah.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Region" } } } },
+          "404": { "description": "Wilayah tidak ditemukan." }
+        }
+      },
+      "patch": {
+        "tags": ["Catalog - Regions"],
+        "summary": "Update Wilayah (SUPER_ADMIN only)",
+        "operationId": "updateRegion",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateRegionRequest" } } }
+        },
+        "responses": {
+          "200": { "description": "Wilayah berhasil diupdate.", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Region" } } } },
+          "403": { "description": "Akses ditolak." },
+          "404": { "description": "Wilayah tidak ditemukan." }
+        }
+      },
+      "delete": {
+        "tags": ["Catalog - Regions"],
+        "summary": "Hapus Wilayah (SUPER_ADMIN only)",
+        "operationId": "deleteRegion",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } }
+        ],
+        "responses": {
+          "200": { "description": "Wilayah berhasil dihapus." },
+          "403": { "description": "Akses ditolak." },
+          "404": { "description": "Wilayah tidak ditemukan." }
+        }
+      }
+    },
+    "/api/v1/prices/latest": {
+      "get": {
+        "tags": ["Prices"],
+        "summary": "Harga Terbaru Semua Komoditas",
+        "description": "Mengambil harga terkini semua komoditas pangan. Dapat difilter berdasarkan tipe pasar dan kabupaten.",
+        "operationId": "getLatestPrices",
+        "parameters": [
+          { "name": "marketTypeId", "in": "query", "schema": { "type": "integer", "enum": [1, 2, 3], "default": 1 }, "description": "1=Tradisional, 2=Modern, 3=Pedagang Besar" },
+          { "name": "kabupaten", "in": "query", "schema": { "type": "string" }, "description": "Nama kabupaten (opsional)", "example": "Bandar Lampung" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar harga terbaru.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "commodityId": { "type": "string", "example": "com_3" },
+                          "commodityName": { "type": "string", "example": "Beras Kualitas Medium I" },
+                          "price": { "type": "integer", "example": 12500 },
+                          "denomination": { "type": "string", "example": "Kg" },
+                          "regionName": { "type": "string", "example": "Bandar Lampung" },
+                          "priceDate": { "type": "string", "format": "date", "example": "2026-05-02" }
+                        }
+                      }
+                    },
+                    "total": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/history": {
+      "get": {
+        "tags": ["Prices"],
+        "summary": "Histori Harga Komoditas (untuk Grafik)",
+        "description": "Mengambil data historis harga satu komoditas untuk ditampilkan di chart/grafik tren.",
+        "operationId": "getPriceHistory",
+        "parameters": [
+          { "name": "commodityId", "in": "query", "schema": { "type": "string" }, "example": "com_3", "description": "ID komoditas (com_1 s/d com_21)" },
+          { "name": "commodityName", "in": "query", "schema": { "type": "string" }, "description": "Alternatif: cari berdasarkan nama komoditas" },
+          { "name": "marketTypeId", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "kabupaten", "in": "query", "schema": { "type": "string" }, "description": "Nama kabupaten (opsional)" },
+          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 30 }, "description": "Rentang hari ke belakang (7, 30, 90)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data historis harga.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "priceDate": { "type": "string", "format": "date" },
+                          "price": { "type": "integer" },
+                          "commodityName": { "type": "string" },
+                          "regionName": { "type": "string" }
+                        }
+                      }
+                    },
+                    "total": { "type": "integer" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/compare": {
+      "get": {
+        "tags": ["Prices"],
+        "summary": "Bandingkan Harga Antar Kabupaten",
+        "description": "Membandingkan harga satu komoditas di semua kabupaten pada tanggal tertentu. Berguna untuk heat map di Mobile App.",
+        "operationId": "comparePricesByRegion",
+        "parameters": [
+          { "name": "commodityId", "in": "query", "required": true, "schema": { "type": "string" }, "example": "com_3" },
+          { "name": "marketTypeId", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "date", "in": "query", "schema": { "type": "string", "format": "date" }, "description": "Format YYYY-MM-DD (default: hari ini)" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Data perbandingan harga per kabupaten.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "integer",
+                        "description": "Harga dalam Rupiah"
+                      },
+                      "example": { "Bandar Lampung": 12500, "Metro": 13000, "Pringsewu": 12200 }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/commodities": {
+      "get": {
+        "tags": ["Prices"],
+        "summary": "Daftar Komoditas yang Tersedia di Database Harga",
+        "description": "Mengembalikan daftar semua komoditas yang datanya sudah tersedia dari hasil scraping.",
+        "operationId": "getAvailableCommodities",
+        "responses": {
+          "200": {
+            "description": "Daftar komoditas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "commodityId": { "type": "string", "example": "com_3" },
+                          "commodityName": { "type": "string", "example": "Beras Kualitas Medium I" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/prices/regions": {
+      "get": {
+        "tags": ["Prices"],
+        "summary": "Daftar Kabupaten/Kota yang Tersedia di Database Harga",
+        "operationId": "getAvailableRegions",
+        "responses": {
+          "200": {
+            "description": "Daftar wilayah.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "type": "string" },
+                      "example": ["Bandar Lampung", "Metro", "Pringsewu", "Tanggamus"]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/chatbot/chat": {
+      "post": {
+        "tags": ["Chatbot"],
+        "summary": "Kirim Pesan ke Chatbot AI",
+        "description": "Mengirimkan pertanyaan teks ke chatbot. NLP akan menganalisis intent dan entity, lalu menjawab berdasarkan data harga di database.\n\n**Contoh pertanyaan:**\n- \"Berapa harga beras di Bandar Lampung?\"\n- \"Bandingkan harga daging sapi antar kabupaten\"\n- \"Harga cabai minggu lalu\"",
+        "operationId": "chatWithBot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": { "type": "string", "example": "Berapa harga beras di Bandar Lampung hari ini?" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Respons chatbot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "type": { "type": "string", "enum": ["text", "rich_data", "error"] },
+                    "response": { "type": "string", "example": "Harga Beras Kualitas Medium I di Bandar Lampung pada tanggal 2026-05-02 adalah Rp12500 per Kg." },
+                    "nlpContext": {
+                      "type": "object",
+                      "properties": {
+                        "intent": { "type": "string", "example": "query_price" },
+                        "confidence": { "type": "number", "example": 0.9 },
+                        "commodity": { "type": "string", "example": "Beras Medium" },
+                        "kabupaten": { "type": "string", "example": "Bandar Lampung" }
+                      }
+                    },
+                    "data": { "type": "object", "nullable": true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/scraper/trigger": {
+      "post": {
+        "tags": ["Scraper Admin"],
+        "summary": "Trigger Scraping Manual (Admin Only)",
+        "description": "Memicu proses scraping data harga dari Bank Indonesia secara manual. Memerlukan JWT token admin.",
+        "operationId": "triggerManualScrape",
+        "security": [{ "BearerAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "startDate": { "type": "string", "format": "date", "example": "2026-04-01" },
+                  "endDate": { "type": "string", "format": "date", "example": "2026-05-02" },
+                  "marketTypeIds": { "type": "array", "items": { "type": "integer" }, "example": [1, 2, 3] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Scraping berhasil dijadwalkan.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "jobId": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid." }
+        }
+      }
+    },
+    "/api/v1/scraper/status": {
+      "get": {
+        "tags": ["Scraper Admin"],
+        "summary": "Status Antrian Scraping (Admin Only)",
+        "description": "Melihat status pekerjaan scraping yang sedang berjalan, menunggu, dan yang terakhir selesai.",
+        "operationId": "getScraperStatus",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Status antrian scraping.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "queue": {
+                      "type": "object",
+                      "properties": {
+                        "waiting": { "type": "integer" },
+                        "active": { "type": "integer" },
+                        "completed": { "type": "integer" },
+                        "failed": { "type": "integer" },
+                        "delayed": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token tidak valid." }
+        }
+      }
+    }
+  }
+}
