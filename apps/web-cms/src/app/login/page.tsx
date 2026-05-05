@@ -1,9 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import api from '@/lib/api';
 
 const loginSchema = z.object({
   email: z.string().email('Format email tidak valid'),
@@ -13,6 +15,10 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -21,8 +27,18 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    console.log('Data Form:', data);
+  const onSubmit = async (data: LoginFormValues) => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await api.post('/auth/login', data);
+      localStorage.setItem('access_token', response.data.access_token);
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Email atau password salah');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -32,6 +48,7 @@ export default function LoginPage() {
         <p className="text-slate-500 mt-2 text-center mb-8">Silakan masuk ke akun Anda</p>
         
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100">{error}</div>}
           <div className="space-y-2">
             <label className="text-sm font-medium text-slate-700">Email</label>
             <input 
@@ -56,9 +73,10 @@ export default function LoginPage() {
 
           <button 
             type="submit"
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md shadow-indigo-100 transition-all active:scale-95"
+            disabled={isLoading}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md shadow-indigo-100 transition-all active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            Masuk ke Dashboard
+            {isLoading ? 'Sedang Masuk...' : 'Masuk ke Dashboard'}
           </button>
         </form>
 
