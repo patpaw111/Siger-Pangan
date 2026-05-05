@@ -1,29 +1,52 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { Package, Map, Search, TrendingUp } from 'lucide-react';
+import StatsCard from '@/components/StatsCard';
 
 export default function DashboardPage() {
-  const router = useRouter();
-
-  const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    router.push('/login');
-  };
-
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">Dashboard Siger Pangan</h1>
-          <p className="text-slate-500 mt-2">Selamat datang di panel kendali utama.</p>
-        </div>
-        <button 
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium"
-        >
-          Keluar
-        </button>
+    <div className="space-y-8">
+      {/* Welcome Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
+        <p className="text-slate-500 mt-1">Ringkasan data harga pangan hari ini di Provinsi Lampung.</p>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <StatsCard 
+          label="Total Komoditas"
+          value="24"
+          icon={Package}
+          description="Beras, Cabai, Bawang, dll."
+          trend={{ value: "12%", isUp: true }}
+          colorClassName="bg-blue-600"
+        />
+        <StatsCard 
+          label="Wilayah & Pasar"
+          value="18"
+          icon={Map}
+          description="Pasar Gintung, Pasar Kangkung, dll."
+          colorClassName="bg-emerald-600"
+        />
+        <StatsCard 
+          label="Status Scraper"
+          value="Aktif"
+          icon={Search}
+          description="Update terakhir: 15 menit lalu"
+          trend={{ value: "Sehat", isUp: true }}
+          colorClassName="bg-amber-600"
+        />
+      </div>
+
+      {/* Info tambahan (Placeholder) */}
+      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <TrendingUp className="text-indigo-600" />
+          Aktivitas Terakhir
+        </h3>
+        <p className="text-slate-400 text-sm">Data transaksi dan perubahan harga terbaru akan tampil di sini.</p>
       </div>
     </div>
   );
