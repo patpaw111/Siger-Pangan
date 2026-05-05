@@ -16,6 +16,15 @@ export default function LoginPage() {
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-all"
             />
           </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-slate-700">Password</label>
+            <input 
+              type="password" 
+              placeholder="••••••••"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-all"
+            />
+          </div>
         </form>
       </div>
     </div>
