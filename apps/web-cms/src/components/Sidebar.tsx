@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { LayoutDashboard } from 'lucide-react';
+import { LayoutDashboard, Package, Map } from 'lucide-react';
 
 export default function Sidebar() {
 
@@ -25,6 +25,22 @@ export default function Sidebar() {
         >
           <LayoutDashboard className="w-5 h-5" />
           <span className="font-medium">Dashboard</span>
+        </Link>
+        
+        <Link
+          href="/dashboard/komoditas"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 hover:text-white transition-all group"
+        >
+          <Package className="w-5 h-5 text-slate-400 group-hover:text-white" />
+          <span className="font-medium">Komoditas</span>
+        </Link>
+
+        <Link
+          href="/dashboard/wilayah"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 hover:text-white transition-all group"
+        >
+          <Map className="w-5 h-5 text-slate-400 group-hover:text-white" />
+          <span className="font-medium">Wilayah/Pasar</span>
         </Link>
       </nav>
     </aside>
