@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { LayoutDashboard, Package, Map } from 'lucide-react';
+import { LayoutDashboard, Package, Map, Settings } from 'lucide-react';
 
 export default function Sidebar() {
 
@@ -43,6 +43,17 @@ export default function Sidebar() {
           <span className="font-medium">Wilayah/Pasar</span>
         </Link>
       </nav>
+
+      {/* Footer / Settings */}
+      <div className="p-4 border-t border-slate-800">
+        <Link
+          href="/dashboard/settings"
+          className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-800 hover:text-white transition-all text-slate-400"
+        >
+          <Settings className="w-5 h-5" />
+          <span className="font-medium">Pengaturan</span>
+        </Link>
+      </div>
     </aside>
   );
 }
