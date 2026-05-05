@@ -33,6 +33,16 @@ export default function LoginPage() {
             Masuk ke Dashboard
           </button>
         </form>
+
+        <div className="mt-6 pt-6 border-t border-slate-100">
+          <button 
+            type="button"
+            className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-all flex items-center justify-center gap-2"
+          >
+            <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" alt="Google" className="w-5 h-5" />
+            Masuk dengan Google
+          </button>
+        </div>
       </div>
     </div>
   );
