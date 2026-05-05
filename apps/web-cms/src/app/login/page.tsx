@@ -25,6 +25,13 @@ export default function LoginPage() {
               className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:border-indigo-500 transition-all"
             />
           </div>
+
+          <button 
+            type="submit"
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md shadow-indigo-100 transition-all active:scale-95"
+          >
+            Masuk ke Dashboard
+          </button>
         </form>
       </div>
     </div>
