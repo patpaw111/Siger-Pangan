@@ -65,3 +65,10 @@ coverage/
 # ── OS ──
 .DS_Store
 desktop.ini
+
+# -- Dokumen Pengerjaan Anggota --
+docs_pengerjaan_anggota/*
+!docs_pengerjaan_anggota/BE-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
+
+# -- Temporary Reports --
+temp_report*.md
