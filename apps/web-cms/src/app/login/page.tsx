@@ -83,6 +83,11 @@ export default function LoginPage() {
         <div className="mt-6 pt-6 border-t border-slate-100">
           <button 
             type="button"
+            onClick={() => {
+              // Redirect ke backend sesuai panduan WEB_CMS_DEV_GUIDE.md
+              const baseURL = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8081';
+              window.location.href = `${baseURL}/api/v1/auth/google`;
+            }}
             className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-medium rounded-lg transition-all flex items-center justify-center gap-2"
           >
             <img src="https://www.gstatic.com/images/branding/product/1x/googleg_48dp.png" alt="Google" className="w-5 h-5" />
