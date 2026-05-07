@@ -1,17 +1,24 @@
-# siger_pangan_mobile
+# 📱 Siger Pangan Mobile
 
-A new Flutter project.
+A mobile application developed for **Dinas Ketahanan Pangan, Tanaman Pangan dan Hortikultura (DKPTPH) Provinsi Lampung**. This app serves as a digital gateway for food security monitoring and institutional management.
 
-## Getting Started
+## 🚀 Features
+- **Secure Authentication**: Username-based login integrated with backend services.
+- **State Management**: Robust implementation using **Riverpod**.
+- **Branding**: Official DKPTPH Prov Lampung visual identity.
+- **REST API Integration**: Built with `http` package for seamless communication with the backend.
 
-This project is a starting point for a Flutter application.
+## 🛠 Tech Stack
+- **Framework**: Flutter (v3.x)
+- **Language**: Dart
+- **State Management**: Flutter Riverpod
+- **Architecture**: Feature-based Folder Structure (Scalable)
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## 📁 Project Structure
+```text
+lib/
+├── models/      # Data entities
+├── providers/   # State management (Riverpod)
+├── screens/     # UI Pages (Login, Dashboard, etc.)
+├── services/    # API calls & Logic
+└── main.dart    # Application entry point
