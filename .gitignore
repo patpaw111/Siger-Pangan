@@ -74,8 +74,8 @@ docs_pengerjaan_anggota/*
 temp_report*.md
 
 # -- Unused Root Files --
-README.md
 FE_API_GUIDE.md
 DEV_GUIDE.md
 BRANCH.md
 test-bot.ps1
+docs/
