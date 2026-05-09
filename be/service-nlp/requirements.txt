@@ -1,0 +1,28 @@
+# FastAPI NLP Service Dependencies
+# ============================================================
+
+# Web Framework
+fastapi==0.109.2
+uvicorn[standard]==0.29.0  # HTTP server (untuk health check endpoint)
+
+# gRPC
+grpcio==1.64.0
+grpcio-tools==1.64.0       # Untuk generate _pb2.py dari .proto
+
+# NLP Libraries
+spacy==3.7.4               # NLP engine utama (Named Entity Recognition)
+# Model bahasa Indonesia (install via command terpisah):
+# python -m spacy download xx_ent_wiki_sm  (multilingual, support Indonesia)
+
+# Alternatif: Jika mau pakai model Transformer (lebih akurat, lebih berat)
+# transformers==4.40.0
+# torch==2.3.0
+
+# Monitoring
+prometheus-client==0.20.0
+
+# Utilities
+pydantic==2.7.1
+pydantic-settings==2.2.1  # Dipisah dari pydantic v2, diperlukan untuk BaseSettings
+python-dotenv==1.0.1
+loguru==0.7.2              # Logging yang lebih baik dari logging standar

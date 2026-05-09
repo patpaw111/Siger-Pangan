@@ -1,0 +1,74 @@
+# ================================================================
+# SIGER PANGAN — Root .gitignore
+# ================================================================
+
+# ── Environment Variables (JANGAN PERNAH commit!) ──
+.env
+.env.local
+.env.production
+*.env
+
+# ── Node.js ──
+node_modules/
+dist/
+build/
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.pyd
+.Python
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ── gRPC Generated Files (di-generate saat build) ──
+be/service-nlp/app/grpc_generated/*_pb2.py
+be/service-nlp/app/grpc_generated/*_pb2_grpc.py
+
+# ── Playwright ──
+playwright-report/
+test-results/
+
+# ── Docker (jangan ignore .dockerignore — wajib di-commit!) ──
+# *.dockerignore  ← JANGAN ignore ini
+
+# ── IDE / Editors ──
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# ── Logs ──
+*.log
+logs/
+
+# ── Temporary ──
+tmp/
+temp/
+.temp/
+
+# ── Coverage ──
+coverage/
+.nyc_output/
+
+# ── OS ──
+.DS_Store
+desktop.ini
+
+# -- Dokumen Pengerjaan Anggota --
+docs_pengerjaan_anggota/*
+!docs_pengerjaan_anggota/BE-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
+
+# -- Temporary Reports --
+temp_report*.md
