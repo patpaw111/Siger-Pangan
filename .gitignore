@@ -81,3 +81,5 @@ test-bot.ps1
 docs/
 
 be/PANDUAN_MENJALANKAN_BE.md
+
+.env.example
