@@ -67,8 +67,7 @@ docker logs -f siger-auth-dev
 ### Akses Database (Adminer GUI)
 Sistem otomatis menyediakan GUI untuk mengelola Database PostgreSQL:
 - **URL**: `http://localhost:8080`
-- **Username**: `siger_user`
-- **Password**: `siger_dev_password`
+- **Username & Password**: *(Silakan lihat kredensial `POSTGRES_USER` dan `POSTGRES_PASSWORD` di dalam file `docker-compose.dev.yml` atau `.env`)*
 - **Database**: Ketik nama DB (contoh: `siger_pangan_dev`, `siger_auth_dev`, atau `siger_catalog_dev`).
 
 ---
