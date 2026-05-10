@@ -1,88 +1,52 @@
 # 🌾 Siger Pangan 
 
 **Sistem Informasi Harga Pangan Provinsi Lampung** 
-Sebuah platform terpadu yang menyajikan informasi harga komoditas pangan secara *real-time* berbasis *Microservices Architecture*.
+
+Selamat datang di repositori resmi **Siger Pangan**! Siger Pangan adalah sebuah platform digital cerdas yang bertujuan untuk menyajikan informasi harga komoditas pangan secara *real-time* dan transparan di seluruh wilayah Provinsi Lampung.
 
 ---
 
-## 🏗️ Arsitektur Proyek (Monorepo)
+## 🎯 Apa itu Siger Pangan?
 
-Repositori ini menggunakan struktur **Monorepo** yang memisahkan masing-masing layanan (Backend, Frontend, dan Mobile) ke dalam folder sejajar agar mudah dikelola oleh masing-masing divisi.
+Bagi masyarakat umum, naik turunnya harga bahan pokok (seperti beras, cabai, bawang, atau daging ayam) sering kali membingungkan. Siger Pangan hadir sebagai solusi untuk memantau harga pangan harian agar warga bisa berbelanja dengan lebih hemat dan bijak.
 
-```text
-Siger-Pangan/
-├── be/                 ← [Backend] Microservices (NestJS & FastAPI)
-├── mobile/             ← [Mobile] Aplikasi Android/iOS (Flutter)
-├── web-cms/            ← [Frontend] Dashboard Admin (Next.js)
-│
-├── infra/              ← [DevOps] Konfigurasi Grafana & Prometheus
-├── nginx/              ← [DevOps] API Gateway Routing
-└── proto/              ← [DevOps] Kontrak gRPC antar Microservices
-```
+Proyek ini menghadirkan ekosistem digital yang terdiri dari dua aplikasi utama:
 
-### ⚙️ Detail Layanan Backend (`/be`)
-Sistem Backend mengimplementasikan arsitektur *True Microservices* di mana setiap *service* memiliki *logical database* PostgreSQL-nya sendiri:
-- **`service-web-scraper`** (Port 3000): Menarik data harga dari website BI & mengatur *Job Queue* (BullMQ). Bertindak juga sebagai *main entrypoint*.
-- **`service-auth`** (Port 3001): Menangani Autentikasi (JWT/Google) dan Manajemen Pengguna.
-- **`service-catalog`** (Port 3002): Mengelola data Komoditas dan Wilayah Pasar.
-- **`service-nlp`** (Port 50051): Mesin Chatbot AI berbasis Python FastAPI yang berkomunikasi via gRPC.
+1. **📱 Aplikasi Mobile (Untuk Warga / Masyarakat Umum)**
+   Aplikasi Android/iOS yang bisa diunduh warga untuk mengecek harga pangan hari ini di pasar terdekat, melihat grafik perubahan harga, dan bahkan **mengobrol dengan Chatbot AI pintar** layaknya bertanya ke pedagang langsung! (Contoh: *"Berapa harga cabai di Pasar Gintung hari ini?"*).
+   
+2. **💻 Web Dashboard CMS (Untuk Petugas Dinas & Surveyor)**
+   Website khusus yang sangat aman untuk petugas pasar (surveyor) di lapangan. Mereka menggunakan website ini untuk memperbarui dan memvalidasi harga bahan pokok di pasar setiap paginya, agar data yang dilihat warga selalu akurat.
+
+## ✨ Fitur Utama
+- **Pantau Harga Real-Time:** Menampilkan data komoditas pangan yang terus diperbarui setiap hari.
+- **Tanya AI (Chatbot Cerdas):** Asisten virtual cerdas yang memahami pertanyaan warga menggunakan bahasa sehari-hari berkat teknologi *Natural Language Processing* (NLP).
+- **Data Akurat & Terintegrasi:** Data bersumber dari input petugas lapangan yang dipadukan secara otomatis (bot scraper) dengan portal resmi pemerintah (Bank Indonesia).
 
 ---
 
-## 🌐 Jaringan & API Publik
+## 🛠️ Untuk Pengembang (Developer Area)
 
-Sistem menggunakan **Cloudflare Zero Trust Tunnel** untuk mengekspos API Gateway lokal ke jaringan publik yang aman (HTTPS) tanpa membutuhkan konfigurasi *Port Forwarding* manual.
+Repositori ini menggunakan arsitektur **Monorepo** yang berisi kode lengkap untuk seluruh platform.
 
-> **Base URL API Utama (Untuk tim Frontend & Mobile):**
-> 👉 `https://api.sigerpangan.my.id`
+### Struktur Repositori
+- **`/mobile`** : Kode untuk Aplikasi Android/iOS (Dibuat dengan **Flutter**).
+- **`/web-cms`** : Kode untuk Website Dashboard Admin (Dibuat dengan **Next.js & React**).
+- **`/be`** : Kumpulan layanan *Backend Microservices* (Dibuat dengan **NestJS** & **Python FastAPI**).
 
-*(Harap gunakan Base URL ini di file `.env` aplikasi Frontend dan Mobile Anda)*
+### Menjalankan Server secara Lokal
+Jika Anda adalah developer yang ingin berkontribusi, kami menggunakan **Docker** agar seluruh sistem pendukung (Database PostgreSQL, Redis, API, dan Bot AI) bisa dihidupkan dengan mudah:
 
----
+1. Pastikan **Docker Desktop** sudah terinstal dan dalam keadaan hidup.
+2. Buka terminal di folder utama proyek ini, lalu jalankan satu perintah sakti berikut:
+   ```bash
+   docker compose -f docker-compose.dev.yml up -d
+   ```
+3. Selesai! Semua sistem berjalan otomatis di latar belakang.
 
-## 🚀 Panduan Menjalankan Sistem (Development)
-
-Untuk menghidupkan seluruh ekosistem (Database, Cache, API Gateway, Microservices, dan Cloudflare Tunnel), Anda hanya membutuhkan Docker!
-
-### Prasyarat
-1. Telah menginstal **Docker Desktop** (Pastikan statusnya *running*).
-2. Memiliki file `.env` di *root directory* yang berisi token konfigurasi Cloudflare.
-
-### Menjalankan Docker
-Buka Terminal di folder utama *Siger-Pangan* dan jalankan:
-```bash
-docker compose -f docker-compose.dev.yml up -d
-```
-
-### Memantau Log
-Untuk melihat proses *running* atau *debugging*, gunakan perintah berikut:
-```bash
-# Memantau lalu lintas API Gateway
-docker logs -f siger-nginx-dev
-
-# Memantau sistem Auth
-docker logs -f siger-auth-dev
-```
-
-### Akses Database (Adminer GUI)
-Sistem otomatis menyediakan GUI untuk mengelola Database PostgreSQL:
-- **URL**: `http://localhost:8080`
-- **Username & Password**: *(Silakan lihat kredensial `POSTGRES_USER` dan `POSTGRES_PASSWORD` di dalam file `docker-compose.dev.yml` atau `.env`)*
-- **Database**: Ketik nama DB (contoh: `siger_pangan_dev`, `siger_auth_dev`, atau `siger_catalog_dev`).
+### Mengakses API Publik
+Bagi tim pengembang antarmuka (Mobile & Frontend), Anda tidak perlu menghidupkan server lokal jika komputer Anda terasa berat! Server kami telah diekspos secara publik melalui *Cloudflare Zero Trust Tunnel*. Cukup masukkan URL berikut ke aplikasi Anda:
+👉 `https://api.sigerpangan.my.id`
 
 ---
-
-## 🌳 Panduan Git (Branching Workflow)
-
-Untuk menjaga kestabilan kode, kami menggunakan strategi *Feature Branching*:
-
-- **`main`** ➔ Cabang stabil untuk keperluan *Production* (DILARANG PUSH LANGSUNG).
-- **`stage`** ➔ Tempat berkumpulnya kode untuk *Integration Testing* sebelum dirilis ke `main`.
-- **`dev/be`**, **`dev/fe`**, **`dev/mobile`** ➔ Base camp utama untuk masing-masing divisi.
-- **`nama-divisi-feature/...`** ➔ Cabang pribadi saat sedang mengetik kode (Contoh: `be-feature/admin-cms`).
-
-**Alur Menulis Kode:**
-1. Anda berada di cabang: `dev/mobile`
-2. Buat cabang baru: `git checkout -b mobile-feature/login-ui`
-3. Kerjakan kode, lalu `git push`.
-4. Buat *Pull Request* (PR) di GitHub menuju cabang `dev/mobile` (atau `stage`).
+*Dibuat dengan ❤️ oleh Tim Pengembang Siger Pangan untuk masyarakat Provinsi Lampung.*
