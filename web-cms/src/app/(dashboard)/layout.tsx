@@ -17,11 +17,21 @@ export default function DashboardLayout({
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Verifikasi token ke backend sesuai panduan FRONTEND_INTEGRATION_GUIDE.md
-        await api.get('/auth/me');
+        const response = await api.get('/auth/me');
+        const userRole = response.data.role;
+
+        // Cek Role: Hanya SUPER_ADMIN dan SURVEYOR yang diizinkan
+        if (userRole !== 'SUPER_ADMIN' && userRole !== 'SURVEYOR') {
+          localStorage.removeItem('access_token');
+          alert('Akses Ditolak: Web CMS hanya untuk Super Admin dan Surveyor.');
+          router.push('/login');
+          return;
+        }
+
         setIsAuthorized(true);
       } catch (error) {
         // Jika token tidak valid atau tidak ada, lempar ke login
+        localStorage.removeItem('access_token');
         router.push('/login');
       }
     };

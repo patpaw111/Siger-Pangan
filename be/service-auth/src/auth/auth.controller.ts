@@ -1,9 +1,10 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, Res } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, Res, Redirect } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto, LoginDto, AdminCreateUserDto } from './dto/auth.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GoogleWebAuthGuard } from './guards/google-web-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { Roles } from './decorators/roles.decorator';
 import { Role } from '../users/entities/user.entity';
@@ -45,17 +46,25 @@ export class AuthController {
 
   // ─── Google OAuth (Web — redirect flow) ───────────────────
   @Get('google')
-  @UseGuards(AuthGuard('google'))
+  @UseGuards(GoogleWebAuthGuard)
   async googleAuth() {
     // Guard akan menangani redirect ke halaman login Google
   }
 
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthCallback(@Request() req: any, @Res() res: any) {
+  @UseGuards(GoogleWebAuthGuard)
+  @Redirect()
+  async googleAuthCallback(@Request() req: any) {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3003';
+
+    // Jika gagal login karena akun belum terdaftar (dikirim dari Guard)
+    if (req.user && req.user._isGoogleAuthFailed) {
+      return { url: `${frontendUrl}/login?error=GoogleAccountNotFound` };
+    }
+
+    // Jika berhasil, buat token dan redirect ke Dashboard
     const token = await this.authService.generateTokenForUser(req.user);
-    // Redirect ke app dengan token via deeplink
-    res.redirect(`sigerpangan://auth?token=${token.access_token}`);
+    return { url: `${frontendUrl}/auth/callback?token=${token.access_token}` };
   }
 
   // ─── Google OAuth (Mobile — native sign-in) ───────────────

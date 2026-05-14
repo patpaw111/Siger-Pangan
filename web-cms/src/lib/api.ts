@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
+if (!API_URL) {
+  console.error('[api.ts] NEXT_PUBLIC_API_URL is not set! Please create web-cms/.env.local');
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+  baseURL: API_URL || 'http://localhost:8081/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },

@@ -28,7 +28,7 @@ export class UsersService {
     email: string;
     name: string;
     avatar_url: string;
-  }): Promise<User> {
+  }, allowCreate: boolean = true): Promise<User | null> {
     // Cari berdasarkan google_id terlebih dahulu
     let user = await this.usersRepository.findOne({
       where: { google_id: googleProfile.google_id },
@@ -49,8 +49,14 @@ export class UsersService {
       }
     }
 
-    // Jika sama sekali belum ada, buat user baru dengan Role USER
+    // Jika sama sekali belum ada
     if (!user) {
+      // Tolak jika pembuatan akun tidak diizinkan (misal dari Web CMS)
+      if (!allowCreate) {
+        return null;
+      }
+
+      // Buat user baru dengan Role USER
       const newUser = this.usersRepository.create({
         email: googleProfile.email,
         name: googleProfile.name,

@@ -26,12 +26,18 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ): Promise<any> {
     const { id, name, emails, photos } = profile;
 
+    // Untuk Web CMS, kita set allowCreate = false
     const user = await this.usersService.findOrCreateByGoogle({
       google_id: id,
       email: emails[0].value,
       name: `${name.givenName} ${name.familyName}`,
       avatar_url: photos[0]?.value || null,
-    });
+    }, false);
+
+    if (!user) {
+      // Return false agar Passport menganggap autentikasi gagal
+      return done(null, false, { message: 'Akun belum terdaftar. Hubungi Super Admin.' } as any);
+    }
 
     done(null, user);
   }

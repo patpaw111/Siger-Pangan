@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,8 +16,16 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    // Tangkap error dari callback Google (misal: akun tidak ditemukan)
+    const errQuery = searchParams.get('error');
+    if (errQuery === 'GoogleAccountNotFound') {
+      return 'Gagal Masuk: Akun Google ini belum terdaftar. Hubungi Super Admin.';
+    }
+    return null;
+  });
 
   const {
     register,
