@@ -69,6 +69,10 @@ desktop.ini
 # -- Dokumen Pengerjaan Anggota --
 docs_pengerjaan_anggota/*
 !docs_pengerjaan_anggota/*.pdf
+!docs_pengerjaan_anggota/*.md
+
+# -- GitHub Configs --
+github-ruleset.json
 
 # -- Temporary Reports --
 temp_report*.md
