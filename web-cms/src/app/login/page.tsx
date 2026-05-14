@@ -93,7 +93,7 @@ export default function LoginPage() {
             <input 
               {...register('email')}
               type="email" 
-              placeholder="admin@sigerpangan.my.id"
+              placeholder="nama@email.com"
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-lg outline-none focus:border-indigo-500 dark:focus:border-indigo-500 text-slate-900 dark:text-zinc-50 transition-all placeholder:text-slate-400 dark:placeholder:text-zinc-600"
             />
             {errors.email && <p className="text-xs text-red-500 dark:text-red-400">{errors.email.message}</p>}
