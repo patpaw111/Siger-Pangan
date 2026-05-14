@@ -24,6 +24,9 @@ export default function LoginPage() {
     if (errQuery === 'GoogleAccountNotFound') {
       return 'Gagal Masuk: Akun Google ini belum terdaftar. Hubungi Super Admin.';
     }
+    if (errQuery === 'RoleNotAllowed') {
+      return 'Akses Ditolak: Web CMS hanya untuk Super Admin dan Surveyor.';
+    }
     return null;
   });
 
@@ -40,6 +43,13 @@ export default function LoginPage() {
     setError(null);
     try {
       const response = await api.post('/auth/login', data);
+      
+      // Cegat jika role adalah USER biasa
+      if (response.data.user?.role === 'USER') {
+        setError('Akses Ditolak: Web CMS hanya untuk Super Admin dan Surveyor.');
+        return;
+      }
+
       localStorage.setItem('access_token', response.data.access_token);
       router.push('/dashboard');
     } catch (err: any) {

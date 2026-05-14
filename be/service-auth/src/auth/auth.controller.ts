@@ -62,6 +62,11 @@ export class AuthController {
       return { url: `${frontendUrl}/login?error=GoogleAccountNotFound` };
     }
 
+    // Cegat jika role adalah USER biasa (hanya Super Admin & Surveyor yang boleh)
+    if (req.user && req.user.role === Role.USER) {
+      return { url: `${frontendUrl}/login?error=RoleNotAllowed` };
+    }
+
     // Jika berhasil, buat token dan redirect ke Dashboard
     const token = await this.authService.generateTokenForUser(req.user);
     return { url: `${frontendUrl}/auth/callback?token=${token.access_token}` };
