@@ -12,6 +12,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
 
   useEffect(() => {
@@ -41,24 +42,32 @@ export default function DashboardLayout({
 
   if (!isAuthorized) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-zinc-950 transition-colors duration-300">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Sidebar - Fix di kiri */}
-      <Sidebar />
+    <div className="flex h-screen bg-slate-50 dark:bg-zinc-950 overflow-hidden transition-colors duration-300">
+      {/* Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
       {/* Area Konten Utama */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header - Fix di atas */}
-        <Header />
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
+        {/* Header */}
+        <Header onMenuClick={() => setIsSidebarOpen(true)} />
 
         {/* Konten Halaman - Scrollable */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

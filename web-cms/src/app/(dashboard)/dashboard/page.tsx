@@ -1,52 +1,252 @@
 'use client';
 
-import React from 'react';
-import { Package, Map, Search, TrendingUp } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
+import { Package, Map, Search, TrendingUp, ArrowRight, Activity, Calendar, Loader2 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
+import api from '@/lib/api';
+
+const MOCK_PRICES = [
+  { id: 1, name: 'Beras Medium', region: 'Pasar Gintung', price: 'Rp 14.500', unit: 'kg', trend: '+2%', date: '15 Mei 2026' },
+  { id: 2, name: 'Cabai Merah', region: 'Pasar Kangkung', price: 'Rp 45.000', unit: 'kg', trend: '-5%', date: '15 Mei 2026' },
+  { id: 3, name: 'Bawang Merah', region: 'Pasar Way Halim', price: 'Rp 32.000', unit: 'kg', trend: '0%', date: '15 Mei 2026' },
+  { id: 4, name: 'Daging Sapi', region: 'Pasar Pasir Gintung', price: 'Rp 130.000', unit: 'kg', trend: '+1%', date: '15 Mei 2026' },
+];
 
 export default function DashboardPage() {
+  const [counts, setCounts] = useState({ commodities: 0, regions: 0 });
+  const [scraperStatus, setScraperStatus] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [activities, setActivities] = useState<any[]>([]);
+
+  const fetchDashboardData = useCallback(async () => {
+    try {
+      const results = await Promise.allSettled([
+        api.get('/catalog/commodities'),
+        api.get('/catalog/regions'),
+        api.get('/scraper/status')
+      ]);
+
+      const [commRes, regRes, scraperRes] = results;
+
+      // Handle Commodities & Regions
+      if (commRes.status === 'fulfilled' && regRes.status === 'fulfilled') {
+        setCounts({
+          commodities: commRes.value.data.length || 0,
+          regions: regRes.value.data.length || 0
+        });
+      } else {
+        if (commRes.status === 'rejected') console.error('Commodities error:', commRes.reason?.response?.data || commRes.reason.message);
+        if (regRes.status === 'rejected') console.error('Regions error:', regRes.reason?.response?.data || regRes.reason.message);
+      }
+
+      // Handle Scraper Status
+      if (scraperRes.status === 'fulfilled') {
+        const data = scraperRes.value.data;
+        setScraperStatus(data);
+
+        // Derive activities from scraper status
+        const newActivities = [];
+        if (data.lastCompletedJob) {
+          newActivities.push({
+            id: 'scrape-' + data.lastCompletedJob.id,
+            title: 'Scraper Selesai',
+            desc: `Job #${data.lastCompletedJob.id} berhasil diperbarui.`,
+            time: new Date(data.lastCompletedJob.finishedOn).toLocaleTimeString(),
+            type: 'success',
+            color: 'bg-indigo-500'
+          });
+        }
+        if (data.queue && data.queue.active > 0) {
+          newActivities.push({
+            id: 'scrape-active',
+            title: 'Scraper Berjalan',
+            desc: `${data.queue.active} proses sedang aktif.`,
+            time: 'Saat ini',
+            type: 'info',
+            color: 'bg-amber-500'
+          });
+        }
+        setActivities(newActivities);
+      } else {
+        console.error('Scraper status error:', scraperRes.reason?.response?.data || scraperRes.reason.message);
+      }
+    } catch (error) {
+      console.error('Unexpected error in dashboard:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+    const interval = setInterval(fetchDashboardData, 30000); // Poll every 30s
+    return () => clearInterval(interval);
+  }, [fetchDashboardData]);
+
+  const handleUpdatePrice = async () => {
+    setIsUpdating(true);
+    try {
+      await api.post('/scraper/trigger', {
+        marketTypeIds: [1] // Default tradisional
+      });
+      alert('Proses pembaruan harga telah dijadwalkan!');
+      fetchDashboardData();
+    } catch (error) {
+      alert('Gagal memicu pembaruan harga.');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const today = new Date().toLocaleDateString('id-ID', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 pb-10">
       {/* Welcome Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
-        <p className="text-slate-500 mt-1">Ringkasan data harga pangan hari ini di Provinsi Lampung.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">Dashboard Overview</h1>
+          <div className="flex items-center gap-2 mt-1 text-slate-500 dark:text-zinc-400">
+            <Calendar size={14} />
+            <p className="text-sm font-medium">{today}</p>
+          </div>
+        </div>
+        <button 
+          onClick={handleUpdatePrice}
+          disabled={isUpdating}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-5 py-2.5 rounded-xl font-bold text-sm shadow-lg shadow-indigo-600/20 transition-all active:scale-95 self-start"
+        >
+          {isUpdating ? <Loader2 size={16} className="animate-spin" /> : <Activity size={16} />}
+          Update Data Harga
+          <ArrowRight size={16} />
+        </button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatsCard 
           label="Total Komoditas"
-          value="24"
+          value={counts.commodities || '...'}
           icon={Package}
-          description="Beras, Cabai, Bawang, dll."
-          trend={{ value: "12%", isUp: true }}
+          href="/dashboard/komoditas"
+          description="Klik untuk manajemen komoditas"
+          trend={{ value: "Live", isUp: true }}
           colorClassName="bg-blue-600"
         />
         <StatsCard 
           label="Wilayah & Pasar"
-          value="18"
+          value={counts.regions || '...'}
           icon={Map}
-          description="Pasar Gintung, Pasar Kangkung, dll."
+          href="/dashboard/wilayah"
+          description="Klik untuk manajemen wilayah"
+          trend={{ value: "Stabil", isUp: true }}
           colorClassName="bg-emerald-600"
         />
         <StatsCard 
           label="Status Scraper"
-          value="Aktif"
+          value={scraperStatus?.queue?.active > 0 ? 'Aktif' : 'Standby'}
           icon={Search}
-          description="Update terakhir: 15 menit lalu"
-          trend={{ value: "Sehat", isUp: true }}
-          colorClassName="bg-amber-600"
+          href="/dashboard/scraper"
+          description={scraperStatus?.lastCompletedJob ? `Selesai: ${new Date(scraperStatus.lastCompletedJob.finishedOn).toLocaleTimeString()}` : 'Klik untuk kontrol scraper'}
+          trend={{ value: scraperStatus?.queue?.waiting > 0 ? `Antre: ${scraperStatus.queue.waiting}` : "Sehat", isUp: true }}
+          colorClassName={scraperStatus?.queue?.active > 0 ? "bg-amber-600 animate-pulse" : "bg-slate-600"}
         />
       </div>
 
-      {/* Info tambahan (Placeholder) */}
-      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <TrendingUp className="text-indigo-600" />
-          Aktivitas Terakhir
-        </h3>
-        <p className="text-slate-400 text-sm">Data transaksi dan perubahan harga terbaru akan tampil di sini.</p>
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Latest Prices Table */}
+        <div className="xl:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm overflow-hidden transition-colors duration-300">
+          <div className="p-6 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50 flex items-center gap-2">
+              <TrendingUp className="text-indigo-600 dark:text-indigo-400" size={20} />
+              Harga Terbaru (Lampung)
+            </h3>
+            <Link href="/dashboard/prices" className="text-sm font-bold text-indigo-600 dark:text-indigo-400 hover:underline">
+              Lihat Semua
+            </Link>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-zinc-950/50 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
+                  <th className="px-6 py-4">Komoditas</th>
+                  <th className="px-6 py-4">Lokasi/Pasar</th>
+                  <th className="px-6 py-4">Harga</th>
+                  <th className="px-6 py-4">Tren</th>
+                  <th className="px-6 py-4 hidden md:table-cell">Waktu</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
+                {MOCK_PRICES.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{item.name}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium uppercase">per {item.unit}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-zinc-400">
+                        <Map size={12} className="text-slate-400" />
+                        {item.region}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-zinc-100">
+                      {item.price}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
+                        item.trend.startsWith('+') ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
+                        item.trend.startsWith('-') ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400' : 
+                        'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                      }`}>
+                        {item.trend}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 hidden md:table-cell">
+                      <span className="text-[10px] text-slate-400 font-medium">{item.date}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* System Activity Card */}
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-slate-200 dark:border-zinc-800 shadow-sm p-6 transition-colors duration-300">
+          <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50 mb-6 flex items-center gap-2">
+            <Activity className="text-indigo-600 dark:text-indigo-400" size={20} />
+            Aktivitas Sistem
+          </h3>
+          <div className="space-y-6">
+            {activities.length > 0 ? activities.map((act) => (
+              <div key={act.id} className="flex gap-4">
+                <div className={`w-1.5 h-10 ${act.color} rounded-full`}></div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-none">{act.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">{act.desc}</p>
+                  <p className="text-[10px] text-slate-400 mt-2 font-medium">{act.time}</p>
+                </div>
+              </div>
+            )) : (
+              <p className="text-sm text-slate-400 text-center py-10">Belum ada aktivitas terbaru.</p>
+            )}
+            
+            {/* Fallback activities to make it look full if not many logs */}
+            <div className="flex gap-4 opacity-50 border-t border-slate-50 dark:border-zinc-800 pt-6">
+              <div className="w-1.5 h-10 bg-emerald-500 rounded-full"></div>
+              <div>
+                <p className="text-sm font-bold text-slate-900 dark:text-zinc-100 leading-none">Admin Login</p>
+                <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">Super Admin masuk via Google.</p>
+                <p className="text-[10px] text-slate-400 mt-2 font-medium">1 jam yang lalu</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
