@@ -18,6 +18,8 @@ export default function Header({ onMenuClick }: HeaderProps) {
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [userData, setUserData] = useState<{ email: string; role: string; name?: string; avatar_url?: string } | null>(null);
 
+  const [notifications, setNotifications] = useState<any[]>([]);
+
   useEffect(() => {
     setMounted(true);
     const fetchUser = async () => {
@@ -29,18 +31,50 @@ export default function Header({ onMenuClick }: HeaderProps) {
       }
     };
     fetchUser();
+
+    // Notifier: Poll scraper status every 30s
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get('/scraper/status');
+        const data = res.data;
+        const newNotifs = [];
+        
+        if (data.queue?.active > 0) {
+          newNotifs.push({
+            id: 'active',
+            title: 'Proses Sinkronisasi',
+            message: `${data.queue.active} tugas sedang berjalan untuk memperbarui harga.`,
+            time: 'Saat ini',
+            type: 'info'
+          });
+        }
+        
+        if (data.lastCompletedJob) {
+          const finishedDate = new Date(data.lastCompletedJob.finishedOn);
+          newNotifs.push({
+            id: data.lastCompletedJob.id,
+            title: 'Sinkronisasi Selesai',
+            message: `Pembaruan data harga berhasil diselesaikan.`,
+            time: finishedDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            type: 'success'
+          });
+        }
+        
+        setNotifications(newNotifs);
+      } catch (e) {
+        // Silent fail for notifications
+      }
+    };
+    
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     router.push('/login');
   };
-
-  const notifications = [
-    { id: 1, title: 'Scraping Selesai', message: 'Data 15 pasar berhasil diperbarui.', time: '15 menit lalu', type: 'success' },
-    { id: 2, title: 'Login Baru', message: 'Anda baru saja masuk via Google.', time: '1 jam lalu', type: 'info' },
-    { id: 3, title: 'Update Sistem', message: 'Sistem versi 1.2.0 stabil dirilis.', time: '3 jam lalu', type: 'system' },
-  ];
 
   return (
     <header className="h-20 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors duration-300">
@@ -79,7 +113,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
               )}
             >
               <Bell size={20} />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-950"></span>
+              {notifications.length > 0 && (
+                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-zinc-950 animate-pulse"></span>
+              )}
             </button>
 
             {/* Notification Dropdown */}
@@ -89,20 +125,32 @@ export default function Header({ onMenuClick }: HeaderProps) {
                 <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                   <div className="p-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
                     <h4 className="font-bold text-slate-900 dark:text-zinc-50">Notifikasi</h4>
-                    <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">3 Baru</span>
+                    <span className="text-[10px] font-bold bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded-full">{notifications.length > 0 ? `${notifications.length} Baru` : 'Kosong'}</span>
                   </div>
                   <div className="max-h-96 overflow-y-auto divide-y divide-slate-50 dark:divide-zinc-800">
-                    {notifications.map((n) => (
+                    {notifications.length > 0 ? notifications.map((n) => (
                       <div key={n.id} className="p-4 hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer">
-                        <p className="text-xs font-bold text-slate-900 dark:text-zinc-100">{n.title}</p>
-                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">{n.message}</p>
+                        <p className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                          <span className={cn("w-1.5 h-1.5 rounded-full", n.type === 'success' ? 'bg-emerald-500' : 'bg-amber-500')}></span>
+                          {n.title}
+                        </p>
+                        <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-1">{n.message}</p>
                         <p className="text-[9px] text-slate-400 dark:text-zinc-500 mt-2">{n.time}</p>
                       </div>
-                    ))}
+                    )) : (
+                      <div className="p-8 text-center text-slate-400 dark:text-zinc-500">
+                        <p className="text-xs font-medium">Belum ada notifikasi baru.</p>
+                      </div>
+                    )}
                   </div>
-                  <button className="w-full py-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors border-t border-slate-100 dark:border-zinc-800">
-                    Tandai Semua Sudah Dibaca
-                  </button>
+                  {notifications.length > 0 && (
+                    <button 
+                      onClick={() => { setNotifications([]); setIsNotificationsOpen(false); }}
+                      className="w-full py-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors border-t border-slate-100 dark:border-zinc-800"
+                    >
+                      Tandai Semua Sudah Dibaca
+                    </button>
+                  )}
                 </div>
               </>
             )}

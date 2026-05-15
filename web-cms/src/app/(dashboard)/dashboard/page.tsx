@@ -2,9 +2,11 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { Package, Map, Search, TrendingUp, ArrowRight, Activity, Calendar, Loader2 } from 'lucide-react';
+import { Package, Map, Search, TrendingUp, ArrowRight, Activity, Calendar, Loader2, Info } from 'lucide-react';
 import StatsCard from '@/components/StatsCard';
+import PriceChart from '@/components/PriceChart';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 
 const MOCK_PRICES = [
   { id: 1, name: 'Beras Medium', region: 'Pasar Gintung', price: 'Rp 14.500', unit: 'kg', trend: '+2%', date: '15 Mei 2026' },
@@ -18,12 +20,13 @@ export default function DashboardPage() {
   const [scraperStatus, setScraperStatus] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
+  const [prices, setPrices] = useState<any[]>([]);
 
   const fetchDashboardData = useCallback(async () => {
     try {
       const results = await Promise.allSettled([
-        api.get('/catalog/commodities'),
-        api.get('/catalog/regions'),
+        api.get('/prices/commodities'),
+        api.get('/prices/regions'),
         api.get('/scraper/status')
       ]);
 
@@ -32,12 +35,20 @@ export default function DashboardPage() {
       // Handle Commodities & Regions
       if (commRes.status === 'fulfilled' && regRes.status === 'fulfilled') {
         setCounts({
-          commodities: commRes.value.data.length || 0,
-          regions: regRes.value.data.length || 0
+          commodities: commRes.value.data.data?.length || 0,
+          regions: regRes.value.data.data?.length || 0
         });
       } else {
         if (commRes.status === 'rejected') console.error('Commodities error:', commRes.reason?.response?.data || commRes.reason.message);
         if (regRes.status === 'rejected') console.error('Regions error:', regRes.reason?.response?.data || regRes.reason.message);
+      }
+
+      // Fetch Latest Prices
+      try {
+        const pricesRes = await api.get('/prices/latest');
+        setPrices(pricesRes.data.data || []);
+      } catch (err) {
+        console.error('Prices error:', err);
       }
 
       // Handle Scraper Status
@@ -84,14 +95,21 @@ export default function DashboardPage() {
 
   const handleUpdatePrice = async () => {
     setIsUpdating(true);
+    const toastId = toast.loading('Memulai sinkronisasi data harga...');
     try {
       await api.post('/scraper/trigger', {
         marketTypeIds: [1] // Default tradisional
       });
-      alert('Proses pembaruan harga telah dijadwalkan!');
+      toast.success('Pembaruan Harga Dijadwalkan', {
+        id: toastId,
+        description: 'Bot scraper sedang berjalan di latar belakang untuk mengambil data dari server pusat.'
+      });
       fetchDashboardData();
-    } catch (error) {
-      alert('Gagal memicu pembaruan harga.');
+    } catch (error: any) {
+      toast.error('Gagal Memperbarui Harga', {
+        id: toastId,
+        description: error.response?.data?.message || 'Terjadi kesalahan pada server.'
+      });
     } finally {
       setIsUpdating(false);
     }
@@ -157,6 +175,9 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Price Chart Section */}
+      <PriceChart />
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Latest Prices Table */}
@@ -173,44 +194,59 @@ export default function DashboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50 dark:bg-zinc-950/50 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest">
-                  <th className="px-6 py-4">Komoditas</th>
-                  <th className="px-6 py-4">Lokasi/Pasar</th>
-                  <th className="px-6 py-4">Harga</th>
-                  <th className="px-6 py-4">Tren</th>
-                  <th className="px-6 py-4 hidden md:table-cell">Waktu</th>
+                <tr className="bg-slate-50 dark:bg-zinc-950/50 text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-widest border-b border-slate-100 dark:border-zinc-800">
+                  <th className="px-6 py-4">Komoditas & Kategori</th>
+                  <th className="px-6 py-4">Lokasi & Tipe Pasar</th>
+                  <th className="px-6 py-4">Harga Aktual</th>
+                  <th className="px-6 py-4 hidden md:table-cell">Waktu Rekam</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-zinc-800">
-                {MOCK_PRICES.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
+                {prices.length > 0 ? prices.slice(0, 5).map((item, idx) => (
+                  <tr key={item.id || idx} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{item.name}</p>
-                      <p className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium uppercase">per {item.unit}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-zinc-400">
-                        <Map size={12} className="text-slate-400" />
-                        {item.region}
+                      <p className="text-sm font-bold text-slate-900 dark:text-zinc-100">{item.commodityName}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 px-2 py-0.5 rounded font-medium">
+                          {item.categoryName || 'Bahan Pokok'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-medium uppercase">
+                          per {item.denomination}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-sm font-black text-slate-900 dark:text-zinc-100">
-                      {item.price}
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col gap-1 text-sm">
+                        <span className="text-slate-900 dark:text-zinc-200 font-medium">{item.regionName}</span>
+                        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-zinc-400">
+                          <Map size={10} className="text-slate-400" />
+                          {item.marketTypeName}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-                        item.trend.startsWith('+') ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 
-                        item.trend.startsWith('-') ? 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400' : 
-                        'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
-                      }`}>
-                        {item.trend}
-                      </span>
+                      <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                        {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.price)}
+                      </p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{item.priceType === 'harga' ? 'Harga Rata-rata' : item.priceType}</p>
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell">
-                      <span className="text-[10px] text-slate-400 font-medium">{item.date}</span>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {new Date(item.priceDate).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-12 text-center">
+                      <div className="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500">
+                        <Info size={32} className="mb-3 opacity-20" />
+                        <p className="text-sm font-medium">Belum ada data harga tersedia.</p>
+                        <p className="text-xs mt-1">Silakan klik tombol "Update Data Harga" untuk menarik data dari server pusat.</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
