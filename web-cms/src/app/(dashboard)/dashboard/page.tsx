@@ -14,7 +14,7 @@ const MOCK_PRICES = [
 ];
 
 export default function DashboardPage() {
-  const [counts, setCounts] = useState({ commodities: 0, regions: 0 });
+  const [counts, setCounts] = useState<{commodities: number | null, regions: number | null}>({ commodities: null, regions: null });
   const [scraperStatus, setScraperStatus] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   const [activities, setActivities] = useState<any[]>([]);
@@ -130,7 +130,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatsCard 
           label="Total Komoditas"
-          value={counts.commodities || '...'}
+          value={counts.commodities ?? '...'}
           icon={Package}
           href="/dashboard/komoditas"
           description="Klik untuk manajemen komoditas"
@@ -139,7 +139,7 @@ export default function DashboardPage() {
         />
         <StatsCard 
           label="Wilayah & Pasar"
-          value={counts.regions || '...'}
+          value={counts.regions ?? '...'}
           icon={Map}
           href="/dashboard/wilayah"
           description="Klik untuk manajemen wilayah"
