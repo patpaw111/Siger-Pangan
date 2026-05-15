@@ -5,19 +5,24 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/roles.enum';
+import { Public } from '../auth/decorators/public.decorator';
 
-@Controller('api/v1/catalog/regions')
+// NOTE: Prefix hanya 'regions' karena Nginx sudah mem-proxy
+// /api/v1/catalog/ → service-catalog:3000
+// Jika prefix diset ke 'api/v1/catalog/regions', maka path menjadi double.
+@Controller('regions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RegionsController {
   constructor(private readonly regionsService: RegionsService) {}
 
   @Get()
-  // Semua user login bisa melihat
+  @Public() // Bisa diakses tanpa login — data publik untuk dashboard
   findAll() {
     return this.regionsService.findAll();
   }
 
   @Get(':id')
+  @Public() // Bisa diakses tanpa login
   findOne(@Param('id') id: string) {
     return this.regionsService.findOne(id);
   }

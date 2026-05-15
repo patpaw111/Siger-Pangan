@@ -5,19 +5,24 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { Role } from '../auth/roles.enum';
+import { Public } from '../auth/decorators/public.decorator';
 
-@Controller('api/v1/catalog/commodities')
+// NOTE: Prefix hanya 'commodities' karena Nginx sudah mem-proxy
+// /api/v1/catalog/ → service-catalog:3000
+// Jika prefix diset ke 'api/v1/catalog/commodities', maka path menjadi double.
+@Controller('commodities')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class CommoditiesController {
   constructor(private readonly commoditiesService: CommoditiesService) {}
 
   @Get()
-  // Semua user login (termasuk USER biasa) bisa melihat daftar komoditas
+  @Public() // Bisa diakses tanpa login — data publik untuk dashboard
   findAll() {
     return this.commoditiesService.findAll();
   }
 
   @Get(':id')
+  @Public() // Bisa diakses tanpa login
   findOne(@Param('id') id: string) {
     return this.commoditiesService.findOne(id);
   }
