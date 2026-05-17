@@ -219,6 +219,48 @@ export default function PriceChart() {
     return null;
   };
 
+  // Render multiple data series dynamically based on selected commodities and regions
+  const getActiveSeriesNames = () => {
+    const names: string[] = [];
+    selectedCommodities.forEach(commId => {
+      const commName = commodities.find(c => c.id === commId)?.name || commId;
+      if (selectedRegions.length === 0) {
+        names.push(commName);
+      } else {
+        selectedRegions.forEach(reg => {
+          names.push(`${commName} (${reg})`);
+        });
+      }
+    });
+    return names;
+  };
+
+  const exportData = (format: 'excel' | 'csv') => {
+    if (data.length === 0) return;
+    
+    const activeSeries = getActiveSeriesNames();
+    
+    const exportRows = data.map(item => {
+      const row: any = { Tanggal: item.date };
+      activeSeries.forEach(series => {
+        row[series] = item[series] || 0;
+      });
+      return row;
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportRows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Harga Komoditas");
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    if (format === 'excel') {
+      XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.xlsx`);
+    } else {
+      XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.csv`, { bookType: 'csv' });
+    }
+    setIsExportDropdownOpen(false);
+  };
+
   const renderChart = () => {
     if (isLoading) {
       return (
@@ -266,47 +308,7 @@ export default function PriceChart() {
       dy: 10
     };
 
-    // Render multiple data series dynamically based on selected commodities and regions
-    const getActiveSeriesNames = () => {
-      const names: string[] = [];
-      selectedCommodities.forEach(commId => {
-        const commName = commodities.find(c => c.id === commId)?.name || commId;
-        if (selectedRegions.length === 0) {
-          names.push(commName);
-        } else {
-          selectedRegions.forEach(reg => {
-            names.push(`${commName} (${reg})`);
-          });
-        }
-      });
-      return names;
-    };
 
-    const exportData = (format: 'excel' | 'csv') => {
-      if (data.length === 0) return;
-      
-      const activeSeries = getActiveSeriesNames();
-      
-      const exportRows = data.map(item => {
-        const row: any = { Tanggal: item.date };
-        activeSeries.forEach(series => {
-          row[series] = item[series] || 0;
-        });
-        return row;
-      });
-
-      const worksheet = XLSX.utils.json_to_sheet(exportRows);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Harga Komoditas");
-
-      const dateStr = new Date().toISOString().split('T')[0];
-      if (format === 'excel') {
-        XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.xlsx`);
-      } else {
-        XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.csv`, { bookType: 'csv' });
-      }
-      setIsExportDropdownOpen(false);
-    };
 
     switch (chartType) {
       case 'bar':
