@@ -147,7 +147,7 @@ export default function PriceChart() {
               if (!dateMap[ts]) {
                 dateMap[ts] = { 
                   timestamp: Number(ts), 
-                  date: new Date(Number(ts)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) 
+                  date: new Date(Number(ts)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: '2-digit' }) 
                 };
               }
               dateMap[ts][seriesName] = Math.round(aggByDate[ts].reduce((a: number, b: number) => a + b, 0) / aggByDate[ts].length);
