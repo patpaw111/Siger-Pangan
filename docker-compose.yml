@@ -52,6 +52,43 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────────
+  # SERVICE AUTH — NestJS (Authentication & Users)
+  # ──────────────────────────────────────────────
+  service-auth:
+    build:
+      context: .
+      dockerfile: ./be/service-auth/Dockerfile
+    container_name: siger-auth
+    env_file:
+      - ./be/service-auth/.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - siger-network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
+  # SERVICE CATALOG — NestJS (Commodities & Regions)
+  # ──────────────────────────────────────────────
+  service-catalog:
+    build:
+      context: .
+      dockerfile: ./be/service-catalog/Dockerfile
+    container_name: siger-catalog
+    env_file:
+      - ./be/service-catalog/.env
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - postgres
+    networks:
+      - siger-network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
   # SERVICE B — FastAPI (NLP Processor via gRPC)
   # ──────────────────────────────────────────────
   service-fastapi:
