@@ -3,6 +3,12 @@
 
 export const BI_PROVINCE_LAMPUNG_ID = 10;
 
+// Daftar wilayah yang di-survey PIHPS di Provinsi Lampung
+export const BI_REGIONS_LAMPUNG = [
+  { id: 22, name: 'Kota Bandar Lampung' },
+  { id: 23, name: 'Kota Metro' },
+];
+
 export const BI_MARKET_TYPES = [
   { id: 1, name: 'Pasar Tradisional' },
   { id: 2, name: 'Pasar Modern' },

@@ -13,6 +13,7 @@ import {
   BI_COMMODITIES,
   BI_CATEGORIES,
   BI_PROVINCE_LAMPUNG_ID,
+  BI_REGIONS_LAMPUNG,
 } from '../common/constants/bi-api.constants';
 
 export interface ScrapeOptions {
@@ -79,14 +80,9 @@ export class ScraperService implements OnModuleInit {
       // Refresh session
       await this.biHttp.initSession();
 
-      // Ambil daftar kabupaten/kota Lampung
-      const regions = await this.biHttp.getRegencies(BI_PROVINCE_LAMPUNG_ID);
+      // Ambil daftar kabupaten/kota Lampung dari PIHPS
+      const regions = BI_REGIONS_LAMPUNG;
       this.logger.log(`Ditemukan ${regions.length} kabupaten/kota untuk Provinsi Lampung`);
-
-      // Jika tidak dapat regions (API error), tambahkan 1 elemen dummy dengan ID kosong untuk fallback agregat
-      if (regions.length === 0) {
-        regions.push({ id: '' as any, name: 'Agregat Provinsi' });
-      }
 
       // Loop per jenis pasar
       for (const marketType of BI_MARKET_TYPES) {

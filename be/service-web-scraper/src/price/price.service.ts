@@ -166,7 +166,7 @@ export class PriceService {
       .orderBy('p.commodity_bi_id')
       .getRawMany();
 
-    await this.redis.setex(cacheKey, 86400, JSON.stringify(result)); // 24 jam
+    await this.redis.setex(cacheKey, 3600, JSON.stringify(result)); // 1 jam
     return result;
   }
 
@@ -186,7 +186,7 @@ export class PriceService {
       .getRawMany();
 
     const regions = result.map((r) => r.name).filter(Boolean);
-    await this.redis.setex(cacheKey, 86400, JSON.stringify(regions));
+    await this.redis.setex(cacheKey, 3600, JSON.stringify(regions)); // 1 jam
     return regions;
   }
 
