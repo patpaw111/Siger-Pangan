@@ -15,8 +15,9 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
-import { Filter, Loader2, AlertCircle, ChevronDown, Check, X } from 'lucide-react';
+import { Filter, Loader2, AlertCircle, ChevronDown, Check, X, Download } from 'lucide-react';
 import api from '@/lib/api';
+import * as XLSX from 'xlsx';
 
 type ChartType = 'line' | 'bar' | 'area';
 
@@ -42,6 +43,9 @@ export default function PriceChart() {
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
   
+  const [isExportDropdownOpen, setIsExportDropdownOpen] = useState(false);
+  const exportDropdownRef = useRef<HTMLDivElement>(null);
+  
   const [commoditySearchQuery, setCommoditySearchQuery] = useState('');
 
   // Close dropdowns on click outside
@@ -52,6 +56,9 @@ export default function PriceChart() {
       }
       if (regionDropdownRef.current && !regionDropdownRef.current.contains(event.target as Node)) {
         setIsRegionDropdownOpen(false);
+      }
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
+        setIsExportDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -275,6 +282,32 @@ export default function PriceChart() {
       return names;
     };
 
+    const exportData = (format: 'excel' | 'csv') => {
+      if (data.length === 0) return;
+      
+      const activeSeries = getActiveSeriesNames();
+      
+      const exportRows = data.map(item => {
+        const row: any = { Tanggal: item.date };
+        activeSeries.forEach(series => {
+          row[series] = item[series] || 0;
+        });
+        return row;
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(exportRows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Harga Komoditas");
+
+      const dateStr = new Date().toISOString().split('T')[0];
+      if (format === 'excel') {
+        XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.xlsx`);
+      } else {
+        XLSX.writeFile(workbook, `Data_Harga_Siger_Pangan_${dateStr}.csv`, { bookType: 'csv' });
+      }
+      setIsExportDropdownOpen(false);
+    };
+
     switch (chartType) {
       case 'bar':
         return (
@@ -472,6 +505,37 @@ export default function PriceChart() {
             <option value={180}>6 Bulan Terakhir</option>
             <option value={365}>1 Tahun Terakhir</option>
           </select>
+
+          {/* Export Dropdown */}
+          <div className="relative" ref={exportDropdownRef}>
+            <button 
+              onClick={() => setIsExportDropdownOpen(!isExportDropdownOpen)}
+              disabled={data.length === 0}
+              className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl px-4 py-2.5 outline-none transition-colors disabled:opacity-50 disabled:hover:bg-emerald-600"
+            >
+              <Download size={16} />
+              <span className="hidden sm:inline">Export</span>
+            </button>
+
+            {isExportDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-40 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xl z-10 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-1.5 flex flex-col gap-1">
+                  <button
+                    onClick={() => exportData('excel')}
+                    className="text-left px-3 py-2 text-sm text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-colors font-medium"
+                  >
+                    Export ke Excel
+                  </button>
+                  <button
+                    onClick={() => exportData('csv')}
+                    className="text-left px-3 py-2 text-sm text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg transition-colors font-medium"
+                  >
+                    Export ke CSV
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Chart Type Toggle */}
           <div className="flex bg-slate-100 dark:bg-zinc-950 p-1 rounded-xl border border-slate-200 dark:border-zinc-800 hidden sm:flex">
