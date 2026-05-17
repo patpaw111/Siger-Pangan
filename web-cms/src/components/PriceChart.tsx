@@ -31,19 +31,25 @@ export default function PriceChart() {
 
   // Filters
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState<string>('');
+  const [selectedRegions, setSelectedRegions] = useState<string[]>([]);
   const [chartType, setChartType] = useState<ChartType>('line');
   const [days, setDays] = useState<number>(30);
   
   // UI State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const regionDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+      }
+      if (regionDropdownRef.current && !regionDropdownRef.current.contains(event.target as Node)) {
+        setIsRegionDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -91,24 +97,31 @@ export default function PriceChart() {
       setIsLoading(true);
       setError(null);
       try {
-        // Fetch data for all selected commodities in parallel
-        const promises = selectedCommodities.map(id => 
-          api.get('/prices/history', { 
-            params: { 
-              commodityId: id, 
-              days: days,
-              kabupaten: selectedRegion || undefined 
-            } 
-          })
-        );
+        const promises: Promise<any>[] = [];
+        const metadata: { commId: string; region: string }[] = [];
+        
+        selectedCommodities.forEach(commId => {
+          if (selectedRegions.length === 0) {
+            promises.push(api.get('/prices/history', { params: { commodityId: commId, days } }));
+            metadata.push({ commId, region: '' });
+          } else {
+            selectedRegions.forEach(reg => {
+              promises.push(api.get('/prices/history', { params: { commodityId: commId, days, kabupaten: reg } }));
+              metadata.push({ commId, region: reg });
+            });
+          }
+        });
+
         const results = await Promise.allSettled(promises);
 
         const dateMap: Record<string, any> = {};
 
         results.forEach((res, index) => {
           if (res.status === 'fulfilled' && res.value.data.success) {
-            const commId = selectedCommodities[index];
-            const commName = commodities.find(c => c.id === commId)?.name || commId;
+            const meta = metadata[index];
+            const commName = commodities.find(c => c.id === meta.commId)?.name || meta.commId;
+            const seriesName = meta.region ? `${commName} (${meta.region})` : commName;
+            
             const rawData = res.value.data.data;
             
             // Aggregate by date (average if multiple regions return data for same day)
@@ -128,7 +141,7 @@ export default function PriceChart() {
                   date: new Date(Number(ts)).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) 
                 };
               }
-              dateMap[ts][commName] = Math.round(aggByDate[ts].reduce((a: number, b: number) => a + b, 0) / aggByDate[ts].length);
+              dateMap[ts][seriesName] = Math.round(aggByDate[ts].reduce((a: number, b: number) => a + b, 0) / aggByDate[ts].length);
             });
           }
         });
@@ -145,18 +158,26 @@ export default function PriceChart() {
     };
 
     fetchChartData();
-  }, [selectedCommodities, days, commodities, selectedRegion]);
+  }, [selectedCommodities, days, commodities, selectedRegions]);
 
   const toggleCommodity = (id: string) => {
     setSelectedCommodities(prev => 
-      prev.includes(id) 
-        ? prev.filter(c => c !== id)
-        : [...prev, id]
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
     );
   };
 
   const removeCommodity = (id: string) => {
     setSelectedCommodities(prev => prev.filter(c => c !== id));
+  };
+
+  const toggleRegion = (reg: string) => {
+    setSelectedRegions(prev => 
+      prev.includes(reg) ? prev.filter(r => r !== reg) : [...prev, reg]
+    );
+  };
+
+  const removeRegion = (reg: string) => {
+    setSelectedRegions(prev => prev.filter(r => r !== reg));
   };
 
   const formatRupiah = (value: number) => {
@@ -236,11 +257,20 @@ export default function PriceChart() {
       dy: 10
     };
 
-    // Render multiple data series dynamically based on selected commodities
-    const getActiveCommodityNames = () => {
-      return selectedCommodities.map(id => {
-        return commodities.find(c => c.id === id)?.name || id;
+    // Render multiple data series dynamically based on selected commodities and regions
+    const getActiveSeriesNames = () => {
+      const names: string[] = [];
+      selectedCommodities.forEach(commId => {
+        const commName = commodities.find(c => c.id === commId)?.name || commId;
+        if (selectedRegions.length === 0) {
+          names.push(commName);
+        } else {
+          selectedRegions.forEach(reg => {
+            names.push(`${commName} (${reg})`);
+          });
+        }
       });
+      return names;
     };
 
     switch (chartType) {
@@ -253,7 +283,7 @@ export default function PriceChart() {
               <YAxis {...yAxisProps} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
-              {getActiveCommodityNames().map((name, idx) => (
+              {getActiveSeriesNames().map((name, idx) => (
                 <Bar key={name} dataKey={name} fill={CHART_COLORS[idx % CHART_COLORS.length]} radius={[4, 4, 0, 0]} barSize={20} />
               ))}
             </BarChart>
@@ -268,7 +298,7 @@ export default function PriceChart() {
               <YAxis {...yAxisProps} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
-              {getActiveCommodityNames().map((name, idx) => {
+              {getActiveSeriesNames().map((name, idx) => {
                 const color = CHART_COLORS[idx % CHART_COLORS.length];
                 return (
                   <Area key={name} type="monotone" dataKey={name} stroke={color} fillOpacity={0.1} fill={color} strokeWidth={3} />
@@ -287,7 +317,7 @@ export default function PriceChart() {
               <YAxis {...yAxisProps} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '20px' }} />
-              {getActiveCommodityNames().map((name, idx) => (
+              {getActiveSeriesNames().map((name, idx) => (
                 <Line 
                   key={name} 
                   type="monotone" 
@@ -328,6 +358,14 @@ export default function PriceChart() {
                 </div>
               );
             })}
+            {selectedRegions.map((reg, idx) => (
+              <div key={reg} className="flex items-center gap-1.5 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 py-1.5 px-3 rounded-full text-xs font-bold text-indigo-700 dark:text-indigo-400">
+                {reg}
+                <button onClick={() => removeRegion(reg)} className="ml-1 text-indigo-400 hover:text-indigo-600 transition-colors">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -370,17 +408,41 @@ export default function PriceChart() {
             )}
           </div>
 
-          {/* Region Filter */}
-          <select 
-            value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
-            className="bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors max-w-[150px] truncate"
-          >
-            <option value="">Semua Wilayah</option>
-            {regions.map(r => (
-              <option key={r} value={r}>{r}</option>
-            ))}
-          </select>
+          {/* Multi-Select Dropdown for Regions */}
+          <div className="relative" ref={regionDropdownRef}>
+            <button 
+              onClick={() => setIsRegionDropdownOpen(!isRegionDropdownOpen)}
+              disabled={regions.length === 0}
+              className="flex items-center gap-2 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm font-medium rounded-xl px-4 py-2.5 outline-none transition-colors hover:bg-slate-100 disabled:opacity-50"
+            >
+              + Wilayah
+              <ChevronDown size={16} className={`transition-transform ${isRegionDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isRegionDropdownOpen && (
+              <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-2 flex flex-col gap-1">
+                  {regions.map((reg) => {
+                    const isSelected = selectedRegions.includes(reg);
+                    return (
+                      <button
+                        key={reg}
+                        onClick={() => toggleRegion(reg)}
+                        className={`flex items-center justify-between w-full text-left px-3 py-2 text-sm rounded-lg transition-colors ${
+                          isSelected 
+                            ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold' 
+                            : 'text-slate-700 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800'
+                        }`}
+                      >
+                        <span className="truncate pr-4">{reg}</span>
+                        {isSelected && <Check size={16} className="shrink-0" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Time Range */}
           <select 
