@@ -50,6 +50,7 @@ export class AuthService {
     const password_hash = await bcrypt.hash(adminCreateUserDto.password, salt);
 
     const user = await this.usersService.create({
+      name: adminCreateUserDto.name,
       email: adminCreateUserDto.email,
       password_hash,
       role: adminCreateUserDto.role,
@@ -57,6 +58,37 @@ export class AuthService {
 
     const { password_hash: _, ...result } = user;
     return result;
+  }
+
+  async findAllUsers() {
+    return this.usersService.findAll();
+  }
+
+  async updateUser(id: string, updateData: Partial<AdminCreateUserDto>) {
+    const userToUpdate: any = { ...updateData };
+    
+    // Hash new password if provided
+    if (updateData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userToUpdate.password_hash = await bcrypt.hash(updateData.password, salt);
+      delete userToUpdate.password;
+    }
+
+    // Check email uniqueness if email is changed
+    if (updateData.email) {
+      const existingUser = await this.usersService.findByEmail(updateData.email);
+      if (existingUser && existingUser.id !== id) {
+        throw new ConflictException('Email sudah terdaftar oleh pengguna lain');
+      }
+    }
+
+    const updatedUser = await this.usersService.update(id, userToUpdate);
+    const { password_hash: _, ...result } = updatedUser;
+    return result;
+  }
+
+  async removeUser(id: string) {
+    return this.usersService.remove(id);
   }
 
   async login(loginDto: LoginDto) {

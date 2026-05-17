@@ -23,6 +23,26 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async findAll(): Promise<User[]> {
+    return this.usersRepository.find({
+      order: { created_at: 'DESC' },
+      select: ['id', 'name', 'email', 'role', 'created_at', 'updated_at', 'avatar_url', 'google_id']
+    });
+  }
+
+  async update(id: string, updateData: Partial<User>): Promise<User> {
+    await this.usersRepository.update(id, updateData);
+    const user = await this.findById(id);
+    if (!user) {
+      throw new Error('User not found');
+    }
+    return user;
+  }
+
+  async remove(id: string): Promise<void> {
+    await this.usersRepository.delete(id);
+  }
+
   async findOrCreateByGoogle(googleProfile: {
     google_id: string;
     email: string;

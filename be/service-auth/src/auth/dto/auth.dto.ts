@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, MinLength, IsString } from 'class-validator';
 import { Role } from '../../users/entities/user.entity';
 
 export class RegisterDto {
@@ -13,6 +13,10 @@ export class RegisterDto {
 }
 
 export class AdminCreateUserDto {
+  @IsOptional()
+  @IsString({ message: 'Nama harus berupa teks' })
+  name?: string;
+
   @IsEmail({}, { message: 'Format email tidak valid' })
   @IsNotEmpty({ message: 'Email tidak boleh kosong' })
   email: string;

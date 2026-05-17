@@ -1,4 +1,4 @@
-import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, Res, Redirect } from '@nestjs/common';
+import { Controller, Post, Body, HttpCode, HttpStatus, Get, UseGuards, Request, Res, Redirect, Param, Delete, Put } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import type { Response } from 'express';
 import { AuthService } from './auth.service';
@@ -36,6 +36,30 @@ export class AuthController {
   @Roles(Role.SUPER_ADMIN)
   async adminCreateUser(@Body() adminCreateUserDto: AdminCreateUserDto) {
     return this.authService.adminCreateUser(adminCreateUserDto);
+  }
+
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async findAllUsers() {
+    return this.authService.findAllUsers();
+  }
+
+  @Put('users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateData: Partial<AdminCreateUserDto>
+  ) {
+    return this.authService.updateUser(id, updateData);
+  }
+
+  @Delete('users/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.SUPER_ADMIN)
+  async removeUser(@Param('id') id: string) {
+    return this.authService.removeUser(id);
   }
 
   @Get('me')
