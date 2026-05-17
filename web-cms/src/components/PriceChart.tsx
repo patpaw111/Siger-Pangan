@@ -25,11 +25,13 @@ const CHART_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#e
 export default function PriceChart() {
   const [data, setData] = useState<any[]>([]);
   const [commodities, setCommodities] = useState<any[]>([]);
+  const [regions, setRegions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Filters
   const [selectedCommodities, setSelectedCommodities] = useState<string[]>([]);
+  const [selectedRegion, setSelectedRegion] = useState<string>('');
   const [chartType, setChartType] = useState<ChartType>('line');
   const [days, setDays] = useState<number>(30);
   
@@ -64,7 +66,18 @@ export default function PriceChart() {
         console.error('Failed to fetch commodities for chart', err);
       }
     };
+    
+    const fetchRegions = async () => {
+      try {
+        const res = await api.get('/prices/regions');
+        if (res.data.success) setRegions(res.data.data);
+      } catch (err) {
+        console.error('Failed to fetch regions for chart', err);
+      }
+    };
+    
     fetchCommodities();
+    fetchRegions();
   }, []);
 
   // Fetch chart data when filters change
@@ -80,7 +93,13 @@ export default function PriceChart() {
       try {
         // Fetch data for all selected commodities in parallel
         const promises = selectedCommodities.map(id => 
-          api.get('/prices/history', { params: { commodityId: id, days: days } })
+          api.get('/prices/history', { 
+            params: { 
+              commodityId: id, 
+              days: days,
+              kabupaten: selectedRegion || undefined 
+            } 
+          })
         );
         const results = await Promise.allSettled(promises);
 
@@ -126,7 +145,7 @@ export default function PriceChart() {
     };
 
     fetchChartData();
-  }, [selectedCommodities, days, commodities]);
+  }, [selectedCommodities, days, commodities, selectedRegion]);
 
   const toggleCommodity = (id: string) => {
     setSelectedCommodities(prev => 
@@ -351,6 +370,18 @@ export default function PriceChart() {
             )}
           </div>
 
+          {/* Region Filter */}
+          <select 
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            className="bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors max-w-[150px] truncate"
+          >
+            <option value="">Semua Wilayah</option>
+            {regions.map(r => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+
           {/* Time Range */}
           <select 
             value={days}
@@ -360,6 +391,9 @@ export default function PriceChart() {
             <option value={7}>7 Hari Terakhir</option>
             <option value={14}>14 Hari Terakhir</option>
             <option value={30}>30 Hari Terakhir</option>
+            <option value={90}>3 Bulan Terakhir</option>
+            <option value={180}>6 Bulan Terakhir</option>
+            <option value={365}>1 Tahun Terakhir</option>
           </select>
 
           {/* Chart Type Toggle */}
