@@ -77,6 +77,15 @@ export class ScraperService implements OnModuleInit {
       // Refresh session
       await this.biHttp.initSession();
 
+      // Ambil daftar kabupaten/kota Lampung
+      const regions = await this.biHttp.getRegencies(BI_PROVINCE_LAMPUNG_ID);
+      this.logger.log(`Ditemukan ${regions.length} kabupaten/kota untuk Provinsi Lampung`);
+
+      // Jika tidak dapat regions (API error), tambahkan 1 elemen dummy dengan ID kosong untuk fallback agregat
+      if (regions.length === 0) {
+        regions.push({ id: '' as any, name: 'Agregat Provinsi' });
+      }
+
       // Loop per jenis pasar
       for (const marketType of BI_MARKET_TYPES) {
         if (!marketTypeIds.includes(marketType.id)) continue;
@@ -87,21 +96,28 @@ export class ScraperService implements OnModuleInit {
         const chunks = this.buildDateChunks(startDate, endDate, chunkDays);
         this.logger.log(`Total chunk tanggal: ${chunks.length} untuk ${marketType.name}`);
 
-        for (const [chunkStart, chunkEnd] of chunks) {
-          const chunkResult = await this.scrapeChunk({
-            marketTypeId: marketType.id,
-            marketTypeName: marketType.name,
-            startDate: chunkStart,
-            endDate: chunkEnd,
-          });
+        // Loop per wilayah
+        for (const region of regions) {
+          this.logger.log(`Scraping wilayah: ${region.name} (ID: ${region.id}) untuk pasar ${marketType.name}`);
+          
+          for (const [chunkStart, chunkEnd] of chunks) {
+            const chunkResult = await this.scrapeChunk({
+              marketTypeId: marketType.id,
+              marketTypeName: marketType.name,
+              regencyId: region.id,
+              regencyName: region.name,
+              startDate: chunkStart,
+              endDate: chunkEnd,
+            });
 
-          result.inserted += chunkResult.inserted;
-          result.updated += chunkResult.updated;
-          result.skipped += chunkResult.skipped;
-          result.errors += chunkResult.errors;
+            result.inserted += chunkResult.inserted;
+            result.updated += chunkResult.updated;
+            result.skipped += chunkResult.skipped;
+            result.errors += chunkResult.errors;
 
-          // Delay antar chunk untuk menghindari rate limiting
-          await this.delay(1500);
+            // Delay antar chunk untuk menghindari rate limiting
+            await this.delay(1500);
+          }
         }
 
         this.logger.log(
@@ -145,10 +161,12 @@ export class ScraperService implements OnModuleInit {
   private async scrapeChunk(params: {
     marketTypeId: number;
     marketTypeName: string;
+    regencyId: number | string;
+    regencyName: string;
     startDate: Date;
     endDate: Date;
   }): Promise<ScrapeResult> {
-    const { marketTypeId, marketTypeName, startDate, endDate } = params;
+    const { marketTypeId, marketTypeName, regencyId, regencyName, startDate, endDate } = params;
     const result: ScrapeResult = { inserted: 0, updated: 0, skipped: 0, errors: 0, durationMs: 0 };
 
     // ⚠️  Format yang benar untuk API BI: YYYY-MM-DD (bukan DD/MM/YYYY!)
@@ -167,7 +185,7 @@ export class ScraperService implements OnModuleInit {
       endDate: endStr,
       provinceId: BI_PROVINCE_LAMPUNG_ID,
       commodityId: '',   // ⚠️  '' bukan '0' — '0' kembalikan data kosong!
-      regencyId: '',     // ⚠️  '' bukan 0  — 0 kembalikan data kosong!
+      regencyId: regencyId,     // ⚠️  '' bukan 0  — 0 kembalikan data kosong!
     });
 
     if (!rawRows || rawRows.length === 0) {
@@ -178,7 +196,7 @@ export class ScraperService implements OnModuleInit {
     this.logger.debug(`Raw rows diterima: ${rawRows.length} (termasuk header kategori)`);
 
     // Parse pivot table → expand ke individual PriceRecord per (komoditas × tanggal)
-    const recordsToUpsert = this.parsePivotRows(rawRows, marketTypeId, marketTypeName);
+    const recordsToUpsert = this.parsePivotRows(rawRows, marketTypeId, marketTypeName, regencyId, regencyName);
     this.logger.debug(`Records setelah expand pivot: ${recordsToUpsert.length}`);
 
     // Batch upsert ke PostgreSQL
@@ -205,6 +223,8 @@ export class ScraperService implements OnModuleInit {
     rows: BiRawRow[],
     marketTypeId: number,
     marketTypeName: string,
+    regencyId: number | string,
+    regencyName: string,
   ): PriceRecord[] {
     const records: PriceRecord[] = [];
 
@@ -245,8 +265,8 @@ export class ScraperService implements OnModuleInit {
             categoryBiId: category?.id ?? 'unknown',
             categoryName: category?.name ?? 'Unknown',
             denomination: commodity?.denomination ?? 'kg',
-            regionBiId: null,
-            regionName: null,       // endpoint GetGridDataDaerah tanpa filter = agregat semua daerah
+            regionBiId: regencyId ? Number(regencyId) : null,
+            regionName: regencyName === 'Agregat Provinsi' ? null : regencyName,
             provinceBiId: BI_PROVINCE_LAMPUNG_ID,
             marketTypeId,
             marketTypeName,
