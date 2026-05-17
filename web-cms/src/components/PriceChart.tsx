@@ -41,6 +41,8 @@ export default function PriceChart() {
   
   const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
   const regionDropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [commoditySearchQuery, setCommoditySearchQuery] = useState('');
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -386,7 +388,20 @@ export default function PriceChart() {
             {isDropdownOpen && (
               <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl shadow-xl z-10 max-h-60 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-2 flex flex-col gap-1">
-                  {commodities.map((c) => {
+                  <div className="px-1 pb-1">
+                    <input 
+                      type="text" 
+                      placeholder="Cari komoditas..." 
+                      className="w-full bg-slate-100 dark:bg-zinc-800 border-none rounded-lg text-sm px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500/50 placeholder:text-slate-400"
+                      value={commoditySearchQuery}
+                      onChange={(e) => setCommoditySearchQuery(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  {commodities.filter(c => c.name.toLowerCase().includes(commoditySearchQuery.toLowerCase())).length === 0 && (
+                    <div className="px-3 py-2 text-sm text-slate-500 text-center">Tidak ditemukan</div>
+                  )}
+                  {commodities.filter(c => c.name.toLowerCase().includes(commoditySearchQuery.toLowerCase())).map((c) => {
                     const isSelected = selectedCommodities.includes(c.id);
                     return (
                       <button
