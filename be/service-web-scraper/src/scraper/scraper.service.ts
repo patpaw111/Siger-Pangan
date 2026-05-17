@@ -6,6 +6,7 @@ import { id as idLocale } from 'date-fns/locale';
 
 import { BiHttpService, BiRawRow } from './bi-http.service';
 import { PriceRecord } from '../price/entities/price-record.entity';
+import { PriceService } from '../price/price.service';
 import { ScraperRun } from './entities/scraper-run.entity';
 import {
   BI_MARKET_TYPES,
@@ -36,6 +37,7 @@ export class ScraperService implements OnModuleInit {
 
   constructor(
     private readonly biHttp: BiHttpService,
+    private readonly priceService: PriceService,
     @InjectRepository(PriceRecord)
     private readonly priceRepo: Repository<PriceRecord>,
     @InjectRepository(ScraperRun)
@@ -140,6 +142,9 @@ export class ScraperService implements OnModuleInit {
         `✅ Scraping selesai! Total: ${result.inserted} inserted, ${result.updated} updated ` +
           `dalam ${(result.durationMs / 1000).toFixed(1)}s`,
       );
+
+      // Bersihkan cache Redis agar dashboard segera terupdate (termasuk count regions)
+      await this.priceService.invalidatePriceCache();
     } catch (err) {
       result.durationMs = Date.now() - startTime;
       await this.runRepo.update(run.id, {

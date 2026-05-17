@@ -7,12 +7,14 @@ import { ScraperProcessor, SCRAPER_QUEUE } from './scraper.processor';
 import { ScraperScheduler } from './scraper.scheduler';
 import { ScraperController } from './scraper.controller';
 import { BiHttpService } from './bi-http.service';
+import { PriceModule } from '../price/price.module';
 import { PriceRecord } from '../price/entities/price-record.entity';
 import { ScraperRun } from './entities/scraper-run.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([PriceRecord, ScraperRun]),
+    PriceModule,
     BullModule.registerQueue({
       name: SCRAPER_QUEUE,
       defaultJobOptions: {
