@@ -1,0 +1,6 @@
+# Hanya izinkan 3 file PDF yang dibutuhkan
+*
+!.gitignore
+!BE-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
+!FE-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
+!Laporan FangeranBelthan-23312223 Pengembangan Web CMS-.pdf
