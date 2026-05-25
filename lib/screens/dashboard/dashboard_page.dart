@@ -1,144 +1,207 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/colors.dart';
-import '../../core/constants/assets.dart';
-import '../../providers/auth_provider.dart';
-import '../monitor/monitor_screen.dart';
-import '../chatbot/chat_screen.dart';
 
-class DashboardPage extends ConsumerWidget {
+class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Mengambil data user yang sedang login dari Riverpod Provider
-    final user = ref.watch(userProvider);
-
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryGreen,
-        title: const Text(
-          'Dashboard Siger Pangan',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.white),
-            onPressed: () {
-              // Action Logout: Reset state user ke null dan kembali ke halaman login
-              ref.read(userProvider.notifier).state = null;
-              Navigator.pushReplacementNamed(context, '/login');
-            },
-          ),
-        ],
-        elevation: 0,
-      ),
+      backgroundColor: Colors.grey.shade50, // Latar belakang abu-abu ultra-light yang bersih
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Welcome Banner
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppColors.primaryGreen,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+            // 1. MODERN HEADER WITH CARD PROFILE
+            _buildHeader(context),
+            
+            const SizedBox(height: 25),
+
+            // 2. LAYANAN UTAMA SECTION (GRID KEKINIAN)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.0),
+              child: Text(
+                "Layanan Utama",
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold, 
+                  color: AppColors.textPrimary,
+                  letterSpacing: 0.3,
                 ),
               ),
+            ),
+            const SizedBox(height: 15),
+            _buildGridMenu(context), // Memanggil fungsi grid menu
+
+            const SizedBox(height: 30),
+
+            // 3. RINGKASAN TREN HARGA (PROGRES INFORMASI REAL-TIME)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundColor: Colors.white,
-                    child: ClipOval(
-                      child: Image.asset(
-                        AppAssets.logoDkpth,
-                        fit: BoxFit.contain,
-                        height: 50,
-                      ),
+                  const Text(
+                    "Ringkasan Tren Pangan",
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pushNamed(context, '/monitor'),
+                    child: Text("Lihat Semua", style: TextStyle(color: AppColors.primaryGreen, fontWeight: FontWeight.bold)),
+                  )
+                ],
+              ),
+            ),
+            _buildQuickOverview(), // FIX: Memanggil langsung ringkasan tanpa _buildFilterTab pembawa error
+            const SizedBox(height: 25),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- KUMPULAN METHOD WIDGET PEMBENTUK DASHBOARD ---
+
+  // Komponen Header Atas Modern
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.primaryGreen,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(32),
+          bottomRight: Radius.circular(32),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 30),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                    child: const CircleAvatar(
+                      radius: 26,
+                      backgroundColor: Colors.white,
+                      backgroundImage: AssetImage('assets/images/logo DKPTPh Prov Lampung.jpeg'),
                     ),
                   ),
                   const SizedBox(width: 15),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Selamat Datang,',
-                          style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14),
-                        ),
-                        Text(
-                          user?.username ?? 'Pegawai DKPTPH',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          'DKPTPH Provinsi Lampung',
-                          style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
-                        ),
-                      ],
-                    ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Selamat Datang,",
+                        style: TextStyle(fontSize: 14, color: Colors.white.withOpacity(0.8)),
+                      ),
+                      const Text(
+                        "Pegawai DKPTPH",
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-
-            const Padding(
-              padding: EdgeInsets.only(left: 20, top: 30, bottom: 15),
-              child: Text(
-                'Menu Layanan Utama',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+              IconButton(
+                icon: const Icon(Icons.logout_rounded, color: Colors.white, size: 26),
+                onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Komponen Grid Menu Utama Kekinian
+  Widget _buildGridMenu(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisSpacing: 16,
+        mainAxisSpacing: 16,
+        childAspectRatio: 1.15,
+        children: [
+          _buildMenuCard(
+            context,
+            title: "Pantauan Harga",
+            desc: "Info harga komoditas",
+            icon: Icons.analytics_outlined,
+            color: Colors.orange.shade50,
+            iconColor: Colors.orange.shade700,
+            route: '/monitor',
+          ),
+          _buildMenuCard(
+            context,
+            title: "Asisten AI",
+            desc: "Tanya Gemini Flash",
+            icon: Icons.auto_awesome_outlined,
+            color: Colors.blue.shade50,
+            iconColor: Colors.blue.shade700,
+            route: '/chatbot', 
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenuCard(
+    BuildContext context, {
+    required String title,
+    required String desc,
+    required IconData icon,
+    required Color color,
+    required Color iconColor,
+    required String route,
+  }) {
+    return InkWell(
+      onTap: () => Navigator.pushNamed(context, route),
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.grey.shade100, width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-
-            // Grid Menu Utama
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisSpacing: 15,
-                mainAxisSpacing: 15,
-                children: [
-                  // Tombol 1: Pantauan Pangan (Membuka MonitorScreen)
-                  _buildMenuCard(
-                    context,
-                    title: 'Pantauan Harga',
-                    subtitle: '16 Komoditas Pangan',
-                    icon: Icons.analytics_outlined,
-                    color: Colors.orange.shade700,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const MonitorScreen()),
-                      );
-                    },
-                  ),
-
-                  // Tombol 2: Chatbot AI Gemini (Membuka ChatScreen)
-                  _buildMenuCard(
-                    context,
-                    title: 'Asisten AI',
-                    subtitle: 'Tanya Gemini Flash',
-                    icon: Icons.psychology_outlined,
-                    color: Colors.blue.shade700,
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const ChatScreen()),
-                      );
-                    },
-                  ),
-                ],
-              ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              child: Icon(icon, color: iconColor, size: 26),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  desc,
+                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ],
         ),
@@ -146,56 +209,46 @@ class DashboardPage extends ConsumerWidget {
     );
   }
 
-  // Widget Helper untuk membuat kartu menu yang rapi
-  Widget _buildMenuCard(
-    BuildContext context, {
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+  // Komponen Ringkasan Cepat Dashboard
+  Widget _buildQuickOverview() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.shade100),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 30),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              title,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
-            ),
+            _buildMiniTrendItem("🌾 Beras Med.", "Rp 13.500", true),
+            Container(height: 30, width: 1, color: Colors.grey.shade200),
+            _buildMiniTrendItem("🌶️ Cabai Merah", "Rp 45.000", false),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMiniTrendItem(String name, String price, bool isUp) {
+    return Column(
+      children: [
+        Text(name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppColors.textSecondary)),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Text(price, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+            const SizedBox(width: 4),
+            Icon(
+              isUp ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+              color: isUp ? Colors.red : Colors.green,
+              size: 14,
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

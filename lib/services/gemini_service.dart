@@ -1,37 +1,37 @@
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class GeminiService {
-  // API Key milik Ihya
-  final String _apiKey = "AIzaSyDJ8doC9GYn_V5eIrvgVdi-vPOJv_f5FSo";
-  late GenerativeModel _model;
+  // BASE URL fiks mengarah ke gerbang API Gateway/Nginx kelompok kalian
+  final String _baseUrl = "https://sigerpangan.my.id/api/v1/nlp/chat"; 
 
-  GeminiService() {
-    // Inisialisasi model gemini-1.5-flash dengan RequestOptions versi baru
-    _model = GenerativeModel(
-      model: 'gemini-1.5-flash',
-      apiKey: _apiKey,
-      requestOptions: const RequestOptions(apiVersion: 'v1beta'),
-    );
-  }
-
-  /// Fungsi untuk mengirimkan pertanyaan ke Gemini AI dan mendapatkan jawaban teks
+  /// Fungsi untuk mengirim pertanyaan dari Flutter ke Backend Service NLP (FastAPI)
   Future<String> tanyaGemini(String prompt) async {
     try {
-      if (_apiKey.isEmpty) {
-        return "Gagal terhubung: API Key Gemini belum diatur di file gemini_service.dart.";
-      }
+      final response = await http.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: jsonEncode({
+          "message": prompt, // Menyesuaikan dengan key request di spesifikasi OpenAPI
+        }),
+      );
 
-      final content = [Content.text(prompt)];
-      final response = await _model.generateContent(content);
-      
-      if (response.text != null && response.text!.isNotEmpty) {
-        return response.text!;
+      print("Status Code Backend: ${response.statusCode}");
+      print("Respon Backend: ${response.body}");
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Mengambil teks balasan dari key 'reply' sesuai rancangan FastAPI
+        return data['reply'] ?? "Maaf, format respon server tidak sesuai.";
       } else {
-        return "Maaf, Gemini tidak memberikan jawaban. Silakan coba lagi.";
+        return "Gagal mendapatkan jawaban. Server merespon dengan status: ${response.statusCode}";
       }
     } catch (e) {
-      print("Error Gemini Service: $e");
-      return "Terjadi kesalahan saat menghubungi Asisten AI. Coba lakukan Hot Restart aplikasi.";
+      print("Error Detail Chatbot: $e");
+      return "Terjadi kesalahan koneksi ke server Siger Pangan. Pastikan server FastAPI backend sudah aktif.";
     }
   }
 }
