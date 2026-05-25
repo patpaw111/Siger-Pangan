@@ -1,7 +1,7 @@
-# Hanya izinkan 3 file PDF yang dibutuhkan
+# Hanya izinkan 4 file PDF yang dibutuhkan
 *
 !.gitignore
 !BE-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
-!FE WebCms-Laporan-FangeranBelthan-23312223.pdf
 !FE WebCms-Laporan-Muhammad Nur Imam Faqih Abdullah-23312181.pdf
+!FE WebCms-Laporan-FangeranBelthan-23312223.pdf
 !Mobile-Laporan-Muhammad Ihya Ulumuddin-23312188.pdf
