@@ -1,21 +1,30 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import '../core/network/api_endpoints.dart';
+import '../models/user_model.dart';
 
 class AuthService {
-  // Ganti URL dengan endpoint API pengerjaanmu
-  final String baseUrl = "http://localhost:3000"; 
+  // Fungsi login terintegrasi dengan endpoint API Gateway Siger Pangan
+  Future<UserModel?> login(String username, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse(ApiEndpoints.login),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
 
-  Future<bool> login(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      body: {'username': username, 'password': password},
-    );
-
-    if (response.statusCode == 200) {
-      // Simpan token atau data user di sini jika perlu
-      return true;
-    } else {
-      return false;
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        return UserModel.fromJson(responseData['data']);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print("Error Auth Service: $e");
+      return null;
     }
   }
 }
