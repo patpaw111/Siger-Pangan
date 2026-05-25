@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:siger_pangan_mobile/screens/login_page.dart'; // Pastikan nama paket sesuai pubspec.yaml
+import 'core/constants/colors.dart';
+import 'screens/auth/login_page.dart';
+import 'screens/dashboard/dashboard_page.dart';
+// FIKS: Impor ditambahkan agar rute navigasi di bawah mengenali halatmannya
+import 'screens/monitor/monitor_screen.dart';
+import 'screens/chatbot/chat_screen.dart';
 
 void main() {
-  // Dibungkus dengan ProviderScope agar Riverpod bisa digunakan di seluruh aplikasi
   runApp(
+    // ProviderScope wajib ada di paling atas agar Riverpod bisa diakses di semua fitur
     const ProviderScope(
       child: SigerPanganApp(),
     ),
@@ -17,27 +22,31 @@ class SigerPanganApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Siger Pangan - DKPTPH Lampung',
+      title: 'Siger Pangan Mobile',
       debugShowCheckedModeBanner: false,
       
-      // Tema aplikasi disesuaikan dengan identitas brand Siger Pangan
+      // Konfigurasi Tema Global Aplikasi (Aksen Hijau DKPTPH)
       theme: ThemeData(
         useMaterial3: true,
+        primaryColor: AppColors.primaryGreen,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green.shade700,
-          primary: Colors.green.shade800,
-        ),
-        
-        // Pengaturan default untuk input text field agar rapi di semua halaman
-        inputDecorationTheme: const InputDecorationTheme(
-          border: OutlineInputBorder(),
-          filled: true,
-          fillColor: Colors.white,
+          seedColor: AppColors.primaryGreen,
+          primary: AppColors.primaryGreen,
         ),
       ),
 
-      // Aplikasi dimulai langsung dari halaman Login
-      home: const LoginPage(),
+      // Halaman pertama yang akan muncul saat aplikasi dibuka
+      initialRoute: '/login',
+
+      // Daftar rute navigasi untuk seluruh halaman Siger Pangan
+      routes: {
+        '/login': (context) => const LoginPage(),
+        '/dashboard': (context) => const DashboardPage(),
+        
+        // FIKS: Komentar dibuka dan diarahkan ke screen yang tepat
+        '/monitor': (context) => const MonitorScreen(),
+        '/chatbot': (context) => const ChatScreen(),
+      },
     );
   }
 }
