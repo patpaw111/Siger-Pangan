@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/auth/presentation/register_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/prices/presentation/price_chart_screen.dart';
 import '../../features/chatbot/presentation/chatbot_screen.dart';
 import '../storage/secure_storage.dart';
 
-// Route names — pakai konstanta agar tidak typo
+// Route names — pake const agar tidak typo
 class AppRoutes {
   static const splash = '/';
   static const login = '/login';
+  static const register = '/register';
   static const home = '/home';
   static const priceChart = '/prices/chart';
   static const chatbot = '/chatbot';
@@ -24,13 +26,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       final token = await SecureStorage.getToken();
       final isLoggedIn = token != null;
       final isOnLogin = state.matchedLocation == AppRoutes.login;
+      final isOnRegister = state.matchedLocation == AppRoutes.register;
       final isOnSplash = state.matchedLocation == AppRoutes.splash;
 
       if (isOnSplash) {
         return isLoggedIn ? AppRoutes.home : AppRoutes.login;
       }
-      if (!isLoggedIn && !isOnLogin) return AppRoutes.login;
-      if (isLoggedIn && isOnLogin) return AppRoutes.home;
+      
+      // Jika belum login, dan BUKAN di halaman login atau register -> paksa ke login
+      if (!isLoggedIn && !isOnLogin && !isOnRegister) return AppRoutes.login;
+      
+      // Jika sudah login, tidak boleh ke halaman login atau register -> arahkan ke home
+      if (isLoggedIn && (isOnLogin || isOnRegister)) return AppRoutes.home;
+      
       return null;
     },
     routes: [
@@ -41,6 +49,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.login,
         builder: (_, __) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.register,
+        builder: (_, __) => const RegisterScreen(),
       ),
       GoRoute(
         path: AppRoutes.home,

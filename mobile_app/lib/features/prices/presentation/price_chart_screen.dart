@@ -150,7 +150,7 @@ class _ChartContent extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: (isUp ? AppColors.priceUp : AppColors.priceDown).withOpacity(0.1),
+                    color: (isUp ? AppColors.priceUp : AppColors.priceDown).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -227,7 +227,7 @@ class _ChartContent extends StatelessWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: AppColors.primary.withOpacity(0.08),
+                      color: AppColors.primary.withValues(alpha: 0.08),
                     ),
                   ),
                 ],

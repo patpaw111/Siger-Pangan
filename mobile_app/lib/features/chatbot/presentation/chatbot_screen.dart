@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/widgets/loading_indicator.dart';
+
 
 // Model
 class ChatMessage {
@@ -284,7 +284,7 @@ class _MessageBubble extends StatelessWidget {
                 border: isUser ? null : Border.all(color: const Color(0xFFE5E7EB)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
+                    color: Colors.black.withValues(alpha: 0.04),
                     blurRadius: 4,
                     offset: const Offset(0, 2),
                   ),
@@ -360,7 +360,7 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                   width: 7, height: 7,
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(_anim.value - (i * 0.1)),
+                    color: AppColors.primary.withValues(alpha: _anim.value - (i * 0.1)),
                     borderRadius: BorderRadius.circular(4),
                   ),
                 )),

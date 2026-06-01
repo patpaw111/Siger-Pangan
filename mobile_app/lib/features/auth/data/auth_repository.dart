@@ -1,6 +1,5 @@
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
-import '../../../core/network/dio_client.dart' show ApiException;
 import '../../../core/storage/secure_storage.dart';
 import '../domain/user_model.dart';
 
@@ -39,6 +38,29 @@ class AuthRepository {
     try {
       final res = await _dio.get('/api/v1/auth/me');
       return UserModel.fromJson(res.data as Map<String, dynamic>);
+    } on DioException catch (e) {
+      throw ApiException.fromDio(e);
+    }
+  }
+
+  Future<UserModel> loginWithGoogle(String idToken) async {
+    try {
+      final res = await _dio.post('/api/v1/auth/google/mobile', data: {
+        'idToken': idToken,
+      });
+
+      final token = res.data['access_token'] as String;
+      final userJson = res.data['user'] as Map<String, dynamic>;
+      final user = UserModel.fromJson(userJson);
+
+      await SecureStorage.saveToken(token);
+      await SecureStorage.saveUserInfo(
+        email: user.email,
+        role: user.role,
+        name: user.name,
+      );
+
+      return user;
     } on DioException catch (e) {
       throw ApiException.fromDio(e);
     }

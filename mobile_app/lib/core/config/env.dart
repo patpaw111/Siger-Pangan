@@ -6,6 +6,8 @@ class Env {
 
   static String get appName => dotenv.env['APP_NAME'] ?? 'Siger Pangan';
 
+  static String get googleWebClientId => dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
+
   static bool get isProduction =>
       (dotenv.env['APP_ENV'] ?? 'production') == 'production';
 }

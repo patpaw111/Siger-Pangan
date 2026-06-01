@@ -29,6 +29,8 @@ class SigerPanganApp extends ConsumerWidget {
       title: 'Siger Pangan',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: ThemeMode.system,
       routerConfig: router,
     );
   }
