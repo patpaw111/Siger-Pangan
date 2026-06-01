@@ -1,0 +1,56 @@
+name: siger_pangan
+description: "Aplikasi pemantauan harga bahan pangan Provinsi Lampung"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^15.1.2
+
+  # HTTP Client
+  dio: ^5.8.0+1
+
+  # Environment
+  flutter_dotenv: ^5.2.1
+
+  # Secure Storage (JWT token)
+  flutter_secure_storage: ^9.2.4
+
+  # UI & Fonts
+  google_fonts: ^6.2.1
+
+  # Chart
+  fl_chart: ^0.70.2
+
+  # Image
+  cached_network_image: ^3.4.1
+
+  # Utils
+  intl: ^0.20.2
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.5
+  custom_lint: ^0.7.5
+  riverpod_lint: ^2.6.5
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
