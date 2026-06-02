@@ -7,6 +7,9 @@ import '../../../shared/widgets/price_card.dart';
 import '../../../shared/widgets/loading_indicator.dart';
 import '../../prices/presentation/prices_notifier.dart';
 import '../../auth/presentation/auth_notifier.dart';
+import 'widgets/dashboard_chart.dart';
+import 'widgets/news_section.dart';
+
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -55,120 +58,72 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-// ─── Dashboard Tab ──────────────────────────────────────────
+// ─── Dashboard Tab (Financial Mode) ──────────────────────────
 class _DashboardTab extends ConsumerWidget {
   const _DashboardTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pricesAsync = ref.watch(latestPricesProvider(1));
+    final rawPricesAsync = ref.watch(latestPricesProvider(1));
 
     return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          // Header
-          SliverToBoxAdapter(
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.primaryDark, AppColors.primary],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Clean
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Siger Pangan',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppColors.primaryDark,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 24,
+                            letterSpacing: -0.5,
+                          ),
+                    ),
+                  ],
                 ),
-              ),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.person, color: AppColors.primary, size: 20),
+                ),
+              ],
+            ),
+          ),
+          
+          const SizedBox(height: 16),
+
+          // Main Chart Area
+          Expanded(
+            child: rawPricesAsync.when(
+              data: (prices) {
+                if (prices.isEmpty) return const Center(child: Text('Data tidak tersedia'));
+                
+                final selectedCommodity = ref.watch(selectedDashboardCommodityProvider) ?? prices.first;
+                return SingleChildScrollView(
+                  child: Column(
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Siger Pangan',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                          ),
-                          Text(
-                            'Harga Bahan Pokok Lampung',
-                            style: TextStyle(
-                              color: Colors.white.withValues(alpha: 0.8),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Icon(Icons.eco_rounded, color: Colors.white, size: 36),
+                      DashboardChart(commodity: selectedCommodity),
+                      const SizedBox(height: 16),
+                      const NewsSection(),
+                      const SizedBox(height: 32),
                     ],
                   ),
-                  const SizedBox(height: 20),
-
-                  // Summary cards
-                  pricesAsync.when(
-                    data: (prices) => Row(
-                      children: [
-                        _SummaryChip(label: '${prices.length} Komoditas', icon: Icons.inventory_2_outlined),
-                        const SizedBox(width: 10),
-                        _SummaryChip(label: 'Update Hari Ini', icon: Icons.update),
-                      ],
-                    ),
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Section title
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
-              child: Text(
-                'Harga Terbaru',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-              ),
-            ),
-          ),
-
-          // Price list
-          pricesAsync.when(
-            data: (prices) => SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (_, i) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: PriceCard(
-                      record: prices[i],
-                      onTap: () => context.push(AppRoutes.priceChart, extra: {
-                        'commodityId': prices[i].commodityBiId,
-                        'commodityName': prices[i].commodityName,
-                      }),
-                    ),
-                  ),
-                  childCount: prices.length > 10 ? 10 : prices.length,
-                ),
-              ),
-            ),
-            loading: () => SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (_, __) => const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-                  child: ShimmerBox(width: double.infinity, height: 80, radius: 16),
-                ),
-                childCount: 6,
-              ),
-            ),
-            error: (e, _) => SliverToBoxAdapter(
-              child: ErrorView(
-                message: 'Gagal memuat data harga',
-                onRetry: () => ref.invalidate(latestPricesProvider),
-              ),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error: $e')),
             ),
           ),
         ],
@@ -177,31 +132,6 @@ class _DashboardTab extends ConsumerWidget {
   }
 }
 
-class _SummaryChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-
-  const _SummaryChip({required this.label, required this.icon});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 14),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
-        ],
-      ),
-    );
-  }
-}
 
 // ─── Prices Tab ─────────────────────────────────────────────
 class _PricesTab extends ConsumerWidget {
