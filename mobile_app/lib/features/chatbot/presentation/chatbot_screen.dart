@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/extensions/currency_extension.dart';
 
 
 // Model
@@ -10,13 +11,17 @@ class ChatMessage {
   final String text;
   final bool isUser;
   final DateTime time;
+  final String? responseType; // 'text', 'rich_data', 'error'
   final Map<String, dynamic>? nlpContext;
+  final dynamic richData;
 
   const ChatMessage({
     required this.text,
     required this.isUser,
     required this.time,
+    this.responseType,
     this.nlpContext,
+    this.richData,
   });
 }
 
@@ -27,6 +32,7 @@ class ChatbotNotifier extends StateNotifier<List<ChatMessage>> {
       text: 'Halo! Saya Siger Pangan Bot 🌾\nTanya saya soal harga bahan pokok di Lampung.\n\nContoh:\n• "berapa harga beras di Bandar Lampung?"\n• "harga cabe rawit di lamsel"\n• "bandingkan harga ayam"',
       isUser: false,
       time: DateTime.now(),
+      responseType: 'text',
     ),
   ]);
 
@@ -43,14 +49,19 @@ class ChatbotNotifier extends StateNotifier<List<ChatMessage>> {
 
     try {
       final res = await _dio.post('/api/v1/chatbot/chat', data: {'text': text});
-      final response = res.data['response'] as String? ?? 'Tidak ada respons';
+      
+      final responseText = res.data['response'] as String? ?? 'Tidak ada respons';
+      final responseType = res.data['type'] as String? ?? 'text';
       final nlpCtx = res.data['nlpContext'] as Map<String, dynamic>?;
+      final richData = res.data['data'];
 
       state = [...state, ChatMessage(
-        text: response,
+        text: responseText,
         isUser: false,
         time: DateTime.now(),
+        responseType: responseType,
         nlpContext: nlpCtx,
+        richData: richData,
       )];
     } on DioException catch (e) {
       final err = ApiException.fromDio(e);
@@ -58,6 +69,14 @@ class ChatbotNotifier extends StateNotifier<List<ChatMessage>> {
         text: 'Maaf, terjadi kesalahan: ${err.message}',
         isUser: false,
         time: DateTime.now(),
+        responseType: 'error',
+      )];
+    } catch (e) {
+      state = [...state, ChatMessage(
+        text: 'Maaf, terjadi kesalahan internal aplikasi.',
+        isUser: false,
+        time: DateTime.now(),
+        responseType: 'error',
       )];
     } finally {
       _isLoading = false;
@@ -66,11 +85,11 @@ class ChatbotNotifier extends StateNotifier<List<ChatMessage>> {
 }
 
 final chatbotProvider =
-    StateNotifierProvider.autoDispose<ChatbotNotifier, List<ChatMessage>>(
+    StateNotifierProvider<ChatbotNotifier, List<ChatMessage>>(
   (_) => ChatbotNotifier(),
 );
 
-final chatbotLoadingProvider = StateProvider.autoDispose<bool>((_) => false);
+final chatbotLoadingProvider = StateProvider<bool>((_) => false);
 
 // Screen
 class ChatbotScreen extends ConsumerStatefulWidget {
@@ -205,6 +224,9 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                     controller: _textCtrl,
                     onSubmitted: (_) => _send(),
                     textInputAction: TextInputAction.send,
+                    keyboardType: TextInputType.multiline,
+                    minLines: 1,
+                    maxLines: 5,
                     style: const TextStyle(fontSize: 14),
                     decoration: InputDecoration(
                       hintText: 'Tanya harga bahan pokok...',
@@ -290,13 +312,29 @@ class _MessageBubble extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Text(
-                message.text,
-                style: TextStyle(
-                  color: isUser ? Colors.white : AppColors.textPrimary,
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    message.text,
+                    style: TextStyle(
+                      color: isUser ? Colors.white : AppColors.textPrimary,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+                  if (!isUser && message.responseType == 'rich_data' && message.richData != null) ...[
+                    const SizedBox(height: 12),
+                    if (message.richData is List)
+                      ...((message.richData as List).map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8.0),
+                        child: _ChatPriceCard(data: item as Map<String, dynamic>),
+                      )).toList())
+                    else if (message.richData is Map<String, dynamic>)
+                      _ChatPriceCard(data: message.richData as Map<String, dynamic>),
+                  ],
+                ],
               ),
             ),
           ),
@@ -372,3 +410,96 @@ class _TypingIndicatorState extends State<_TypingIndicator>
     );
   }
 }
+
+class _ChatPriceCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _ChatPriceCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    int price = 0;
+    if (data['price'] != null) {
+      if (data['price'] is int) {
+        price = data['price'] as int;
+      } else if (data['price'] is String) {
+        price = int.tryParse(data['price'] as String) ?? 0;
+      }
+    }
+    
+    final commodityName = data['commodityName'] ?? 'Komoditas';
+    final regionName = data['regionName'] ?? 'Provinsi Lampung';
+    final denomination = data['denomination'] ?? 'Kg';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: AppColors.primary.withValues(alpha: 0.05),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.shopping_basket_rounded, color: AppColors.primary, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$commodityName',
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      '$regionName',
+                      style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(height: 1, color: Color(0xFFE5E7EB)),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                price.toRupiah(),
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryDark),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '/ $denomination',
+                style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+

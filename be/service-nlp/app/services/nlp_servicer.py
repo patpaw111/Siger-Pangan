@@ -91,6 +91,7 @@ class NlpServicer(nlp_pb2_grpc.NlpServiceServicer):
                 raw_entities=result.raw_entities,
                 success=result.success,
                 error_message=result.error_message,
+                reply_text=getattr(result, 'reply_text', ''),
             )
 
         except Exception as e:

@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "development"
     NLP_MODEL: str = "xx_ent_wiki_sm"
     LOG_LEVEL: str = "INFO"
+    NVIDIA_API_KEY: str = ""
 
     class Config:
         env_file = ".env"

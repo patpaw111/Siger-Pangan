@@ -26,3 +26,4 @@ pydantic==2.7.1
 pydantic-settings==2.2.1  # Dipisah dari pydantic v2, diperlukan untuk BaseSettings
 python-dotenv==1.0.1
 loguru==0.7.2              # Logging yang lebih baik dari logging standar
+requests==2.31.0           # HTTP client untuk API NVIDIA

@@ -66,6 +66,8 @@ services:
       dockerfile: ./be/service-nlp/Dockerfile
     container_name: siger-nlp-dev
     restart: unless-stopped
+    env_file:
+      - ./be/service-nlp/.env
     ports:
       - "50051:50051"
       - "8000:8000"

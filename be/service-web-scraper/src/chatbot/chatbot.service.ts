@@ -19,6 +19,7 @@ interface NlpResponse {
   rawEntities: string[];
   success: boolean;
   errorMessage: string;
+  replyText?: string;
 }
 
 interface NlpServiceGrpc {
@@ -63,11 +64,17 @@ export class ChatbotService implements OnModuleInit {
         case 'compare_price':
           return await this.handleComparePrice(nlpResponse);
         case 'greet':
-          return this.formatTextResponse('Halo! Saya Siger Pangan Bot. Ada yang bisa saya bantu tentang harga bahan pokok di Lampung? Silakan sebutkan komoditas dan daerahnya.', nlpResponse);
+          return this.formatTextResponse(nlpResponse.replyText || 'Halo! Saya Siger Pangan Bot. Ada yang bisa saya bantu tentang harga bahan pokok di Lampung? Silakan sebutkan komoditas dan daerahnya.', nlpResponse);
         case 'help':
-          return this.formatTextResponse('Anda bisa bertanya seperti: "Berapa harga beras di Bandar Lampung?" atau "Bandingkan harga daging sapi antara Metro dan Pringsewu".', nlpResponse);
+          return this.formatTextResponse(nlpResponse.replyText || 'Anda bisa bertanya seperti: "Berapa harga beras di Bandar Lampung?" atau "Bandingkan harga daging sapi antara Metro dan Pringsewu".', nlpResponse);
+        case 'conversational':
+          return this.formatTextResponse(nlpResponse.replyText || 'Maaf, saya tidak mengerti.', nlpResponse);
         default:
-          return this.formatTextResponse(`Maaf, saya tidak mengerti pertanyaan Anda (Intent: ${nlpResponse.intent}). Coba tanyakan harga bahan pokok dengan lebih spesifik.`, nlpResponse);
+          // Jika intent tidak dikenali tapi ada replyText dari AI, gunakan itu
+          if (nlpResponse.replyText) {
+            return this.formatTextResponse(nlpResponse.replyText, nlpResponse);
+          }
+          return this.formatTextResponse(`Maaf, saya tidak mengerti pertanyaan Anda. Coba tanyakan harga bahan pokok dengan lebih spesifik.`, nlpResponse);
       }
     } catch (error) {
       this.logger.error(`Error processing chat: ${error.message}`);
@@ -90,14 +97,18 @@ export class ChatbotService implements OnModuleInit {
     let queryResult = null;
     try {
       const resp = await this.priceService.getLatestPrices({ marketTypeId: 1, kabupaten: nlpResponse.kabupaten });
-      // Filter result
-      const specificData = resp.find(item => item.commodityName.toLowerCase().includes(nlpResponse.commodity.toLowerCase()));
+      // Filter result untuk mengambil SEMUA data yang cocok (multidata)
+      const specificData = resp.filter(item => 
+        item.commodityName.toLowerCase().includes(nlpResponse.commodity.toLowerCase())
+      );
       
-      if (specificData) {
-        const textAnswer = `Harga ${specificData.commodityName} di ${specificData.regionName || 'Provinsi Lampung'} pada tanggal ${specificData.priceDate} adalah Rp${specificData.price} per ${specificData.denomination}.`;
-        return this.formatRichResponse(textAnswer, nlpResponse, specificData);
+      if (specificData.length > 0) {
+        // Gunakan replyText dari AI, jika kosong gunakan default
+        const textAnswer = nlpResponse.replyText || `Berikut adalah daftar harga ${nlpResponse.commodity} yang saya temukan:`;
+        return this.formatRichResponse(textAnswer, nlpResponse, specificData); // specificData sekarang berupa Array
       } else {
-        return this.formatTextResponse(`Mohon maaf, saat ini data harga untuk ${nlpResponse.commodity} ${nlpResponse.kabupaten ? 'di ' + nlpResponse.kabupaten : ''} belum tersedia di sistem kami.`, nlpResponse);
+        const textAnswer = nlpResponse.replyText || `Mohon maaf, saat ini data harga untuk ${nlpResponse.commodity} ${nlpResponse.kabupaten ? 'di ' + nlpResponse.kabupaten : ''} belum tersedia di sistem kami.`;
+        return this.formatTextResponse(textAnswer, nlpResponse);
       }
     } catch (e) {
       return this.formatTextResponse(`Gagal mengambil data dari database harga.`, nlpResponse);
@@ -106,13 +117,26 @@ export class ChatbotService implements OnModuleInit {
 
   private async handleComparePrice(nlpResponse: NlpResponse) {
     if (!nlpResponse.commodity) {
-      return this.formatTextResponse('Komoditas apa yang ingin Anda bandingkan?', nlpResponse);
+      return this.formatTextResponse(nlpResponse.replyText || 'Komoditas apa yang ingin Anda bandingkan? Sebutkan jenisnya (misal: minyak, bawang).', nlpResponse);
     }
-    // TODO: implement logic perbandingan antara 2 kab.
-    // Di NLP Result, kabupaten hanya mengembalikan teks yang termatch.
-    // Kita harus ekstrak 2 kabupaten. Saat ini NLP hanya simpan satu string kabupaten utama.
-    // Untuk pengembangan awal, balas dengan instruksi cek menu Heatmap:
-    return this.formatTextResponse(`Untuk membandingkan harga ${nlpResponse.commodity} antar wilayah secara lengkap, silakan cek menu "Perbandingan Harga" di aplikasi ini. Fitur chatbot untuk analisis komparatif dalam tahap pengembangan.`, nlpResponse);
+
+    // Ambil data harga dari database, sama seperti handleQueryPrice
+    try {
+      const resp = await this.priceService.getLatestPrices({ marketTypeId: 1, kabupaten: nlpResponse.kabupaten });
+      const specificData = resp.filter(item =>
+        item.commodityName.toLowerCase().includes(nlpResponse.commodity.toLowerCase())
+      );
+
+      if (specificData.length > 0) {
+        const textAnswer = nlpResponse.replyText || `Berikut perbandingan harga ${nlpResponse.commodity} yang saya temukan:`;
+        return this.formatRichResponse(textAnswer, nlpResponse, specificData);
+      } else {
+        const textAnswer = nlpResponse.replyText || `Mohon maaf, data harga untuk ${nlpResponse.commodity} belum tersedia di sistem kami.`;
+        return this.formatTextResponse(textAnswer, nlpResponse);
+      }
+    } catch (e) {
+      return this.formatTextResponse(`Gagal mengambil data dari database harga.`, nlpResponse);
+    }
   }
 
   // -------------------------------------------------------------

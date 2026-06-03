@@ -38,9 +38,9 @@ class NlpResult:
 
 COMMODITIES = {
     # Format: "kata kunci" -> "nama canonical"
-    "beras medium":          "Beras Medium",
-    "beras":                 "Beras Medium",
-    "beras premium":         "Beras Premium",
+    "beras medium":          "Beras Kualitas Medium",
+    "beras":                 "Beras Kualitas Medium",
+    "beras premium":         "Beras Kualitas Super",
     "jagung":                "Jagung",
     "kedelai":               "Kedelai",
     "kacang kedelai":        "Kedelai",
@@ -184,38 +184,127 @@ class NlpPipeline:
         except OSError:
             logger.warning(f"⚠️ Model '{settings.NLP_MODEL}' tidak ditemukan, menggunakan rule-based saja")
             self.nlp = None
+            
+        self.nvidia_enabled = False
+        if settings.NVIDIA_API_KEY:
+            self.nvidia_enabled = True
+            self.nvidia_api_key = settings.NVIDIA_API_KEY
+            logger.info("✅ NVIDIA API (Kimi k2.6) berhasil dikonfigurasi sebagai otak utama NLP")
 
     def analyze(self, text: str, language: str = "id") -> NlpResult:
         """
         Analisis teks dan kembalikan intent + entity yang diekstrak.
         """
         try:
-            text_lower = text.lower().strip()
-            result = NlpResult()
+            if self.nvidia_enabled:
+                result = self._analyze_with_nvidia(text)
+                if result.success and result.intent != "unknown":
+                    return result
+                logger.warning("⚠️ NVIDIA API gagal atau return unknown, fallback ke Rule-based")
 
-            # 1. Classify Intent
-            result.intent, result.confidence = self._classify_intent(text_lower)
-
-            # 2. Extract Commodity
-            result.commodity = self._extract_commodity(text_lower)
-
-            # 3. Extract Kabupaten
-            result.kabupaten = self._extract_kabupaten(text_lower)
-
-            # 4. Extract Time Expression
-            result.time_expression = self._extract_time(text_lower)
-
-            # 5. spaCy NER (sebagai backup jika rule-based tidak menemukan)
-            if self.nlp and (not result.commodity or not result.kabupaten):
-                spacy_entities = self._spacy_extract(text)
-                result.raw_entities = spacy_entities
-
-            result.success = True
-            return result
-
+            return self._analyze_with_rule_based(text)
         except Exception as e:
             logger.error(f"Error saat analisis NLP: {e}")
             return NlpResult(success=False, error_message=str(e))
+            
+    def _analyze_with_nvidia(self, text: str) -> NlpResult:
+        import json
+        import requests
+        try:
+            # Panggil model LLM dari NVIDIA NIM
+            invoke_url = "https://integrate.api.nvidia.com/v1/chat/completions"
+            headers = {
+                "Authorization": f"Bearer {self.nvidia_api_key}",
+                "Accept": "application/json"
+            }
+            
+            system_prompt = self._get_system_prompt()
+            
+            payload = {
+                "model": "meta/llama-3.3-70b-instruct",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": text},
+                ],
+                "max_tokens": 512,
+                "temperature": 0.2,
+                "top_p": 0.9,
+                "stream": False,
+            }
+            
+            response = requests.post(invoke_url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            
+            resp_data = response.json()
+            content = resp_data["choices"][0]["message"]["content"]
+            
+            # Parsing response JSON dari API
+            json_str = content.strip()
+            if json_str.startswith("```json"):
+                json_str = json_str[7:]
+            if json_str.endswith("```"):
+                json_str = json_str[:-3]
+            
+            data = json.loads(json_str.strip())
+            
+            result = NlpResult()
+            result.intent = data.get("intent", "unknown")
+            result.confidence = 0.95 if result.intent != "unknown" else 0.5
+            result.commodity = data.get("commodity", "")
+            result.kabupaten = data.get("kabupaten", "")
+            result.time_expression = "latest"
+            
+            # Khusus LLM conversational
+            if "reply_text" in data and data["reply_text"]:
+                setattr(result, "reply_text", data["reply_text"])
+                
+            result.success = True
+            
+            logger.info(f"🧠 [NVIDIA Output] Intent: {result.intent}, Commodity: {result.commodity}, Kabupaten: {result.kabupaten}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error pada ekstraksi NVIDIA API: {e}")
+            return NlpResult(success=False, error_message=str(e))
+    
+    def _get_system_prompt(self) -> str:
+        """System prompt yang ringkas untuk meminimalisir latency."""
+        return """Kamu adalah "Siger Pangan Bot", asisten harga pangan Provinsi Lampung. Baca pesan user, kembalikan HANYA JSON object murni (tanpa markdown/komentar).
+
+ATURAN:
+1. "intent": salah satu dari: query_price, compare_price, price_trend, list_commodity, list_region, greet, help, conversational. JANGAN PERNAH pakai "unknown".
+2. Jika pesan hanya 1-2 kata benda (bawang/beras/ayam/cabe/minyak) -> intent = "query_price".
+3. "commodity": petakan ke nama umum: bawang->"Bawang", minyak->"Minyak", cabe/lombok/cabai->"Cabai", beras->"Beras", ayam->"Ayam", sapi->"Sapi", telur->"Telur", gula->"Gula", tepung->"Tepung", ikan->"Ikan", jagung->"Jagung", kedelai->"Kedelai". Kosongkan "" jika tidak ada.
+4. "kabupaten": petakan singkatan: lamsel->"Lampung Selatan", lamteng->"Lampung Tengah", balam->"Bandar Lampung", dll. Kosongkan "" jika tidak ada.
+5. "reply_text": WAJIB DIISI. Balasan singkat, luwes, dan ramah. Untuk query_price/compare_price: beri kalimat pengantar singkat (1 kalimat). Untuk conversational: jawab dengan empati.
+
+Contoh:
+{"intent":"query_price","commodity":"Minyak","kabupaten":"","reply_text":"Ini dia daftar harga minyak goreng hari ini:"}
+{"intent":"conversational","commodity":"Beras","kabupaten":"","reply_text":"Iya nih, harga beras memang lagi naik. Tetap semangat ya!"}"""
+
+    def _analyze_with_rule_based(self, text: str) -> NlpResult:
+        text_lower = text.lower().strip()
+        result = NlpResult()
+
+        # 1. Classify Intent
+        result.intent, result.confidence = self._classify_intent(text_lower)
+
+        # 2. Extract Commodity
+        result.commodity = self._extract_commodity(text_lower)
+
+        # 3. Extract Kabupaten
+        result.kabupaten = self._extract_kabupaten(text_lower)
+
+        # 4. Extract Time Expression
+        result.time_expression = self._extract_time(text_lower)
+
+        # 5. spaCy NER (sebagai backup jika rule-based tidak menemukan)
+        if self.nlp and (not result.commodity or not result.kabupaten):
+            spacy_entities = self._spacy_extract(text)
+            result.raw_entities = spacy_entities
+
+        result.success = True
+        return result
 
     def _classify_intent(self, text: str) -> tuple[str, float]:
         """Klasifikasi intent menggunakan regex patterns."""
