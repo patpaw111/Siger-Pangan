@@ -107,7 +107,10 @@ export class ChatbotService implements OnModuleInit {
         const textAnswer = nlpResponse.replyText || `Berikut adalah daftar harga ${nlpResponse.commodity} yang saya temukan:`;
         return this.formatRichResponse(textAnswer, nlpResponse, specificData); // specificData sekarang berupa Array
       } else {
-        const textAnswer = nlpResponse.replyText || `Mohon maaf, saat ini data harga untuk ${nlpResponse.commodity} ${nlpResponse.kabupaten ? 'di ' + nlpResponse.kabupaten : ''} belum tersedia di sistem kami.`;
+        // Jangan gunakan nlpResponse.replyText karena AI berasumsi data ditemukan.
+        // Gunakan template kustom yang informatif.
+        const wilayah = nlpResponse.kabupaten ? `di ${nlpResponse.kabupaten}` : 'untuk wilayah tersebut';
+        const textAnswer = `Mohon maaf, saat ini data harga ${nlpResponse.commodity} ${wilayah} belum tersedia di sistem kami. Silakan coba cari komoditas atau daerah lain ya!`;
         return this.formatTextResponse(textAnswer, nlpResponse);
       }
     } catch (e) {
@@ -131,7 +134,9 @@ export class ChatbotService implements OnModuleInit {
         const textAnswer = nlpResponse.replyText || `Berikut perbandingan harga ${nlpResponse.commodity} yang saya temukan:`;
         return this.formatRichResponse(textAnswer, nlpResponse, specificData);
       } else {
-        const textAnswer = nlpResponse.replyText || `Mohon maaf, data harga untuk ${nlpResponse.commodity} belum tersedia di sistem kami.`;
+        // Jangan gunakan nlpResponse.replyText karena AI berasumsi data ditemukan.
+        const wilayah = nlpResponse.kabupaten ? `di ${nlpResponse.kabupaten}` : 'untuk wilayah tersebut';
+        const textAnswer = `Mohon maaf, perbandingan harga ${nlpResponse.commodity} ${wilayah} belum tersedia karena datanya kosong. Silakan coba komoditas lain.`;
         return this.formatTextResponse(textAnswer, nlpResponse);
       }
     } catch (e) {

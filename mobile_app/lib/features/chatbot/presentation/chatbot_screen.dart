@@ -29,7 +29,7 @@ class ChatMessage {
 class ChatbotNotifier extends StateNotifier<List<ChatMessage>> {
   ChatbotNotifier() : super([
     ChatMessage(
-      text: 'Halo! Saya Siger Pangan Bot 🌾\nTanya saya soal harga bahan pokok di Lampung.\n\nContoh:\n• "berapa harga beras di Bandar Lampung?"\n• "harga cabe rawit di lamsel"\n• "bandingkan harga ayam"',
+      text: 'Halo! Saya Siger Pangan Bot 🌾\nTanya saya soal harga bahan pokok di Lampung.\n\nContoh:\n• "berapa harga beras di Bandar Lampung?"\n• "harga bawang merah di Metro"\n• "bandingkan harga ayam"',
       isUser: false,
       time: DateTime.now(),
       responseType: 'text',
@@ -105,6 +105,17 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   bool _isSending = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Langsung scroll ke bawah saat layar dibuka (tanpa animasi agar instan)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollCtrl.hasClients) {
+        _scrollCtrl.jumpTo(_scrollCtrl.position.maxScrollExtent);
+      }
+    });
+  }
+
+  @override
   void dispose() {
     _textCtrl.dispose();
     _scrollCtrl.dispose();
@@ -176,7 +187,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
                 for (final q in [
                   'Berapa harga beras?',
                   'Harga ayam di Metro',
-                  'Harga cabai lamsel',
+                  'Bandingkan harga minyak',
                   'Daftar komoditas',
                 ])
                   Padding(
@@ -211,54 +222,56 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           ),
 
           // Input bar
-          Container(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 12),
-            decoration: const BoxDecoration(
-              color: AppColors.surface,
-              border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _textCtrl,
-                    onSubmitted: (_) => _send(),
-                    textInputAction: TextInputAction.send,
-                    keyboardType: TextInputType.multiline,
-                    minLines: 1,
-                    maxLines: 5,
-                    style: const TextStyle(fontSize: 14),
-                    decoration: InputDecoration(
-                      hintText: 'Tanya harga bahan pokok...',
-                      hintStyle: const TextStyle(fontSize: 14, color: AppColors.textTertiary),
-                      filled: true,
-                      fillColor: AppColors.surfaceVariant,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(24),
-                        borderSide: BorderSide.none,
+          SafeArea(
+            child: Container(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              decoration: const BoxDecoration(
+                color: AppColors.surface,
+                border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _textCtrl,
+                      onSubmitted: (_) => _send(),
+                      textInputAction: TextInputAction.send,
+                      keyboardType: TextInputType.multiline,
+                      minLines: 1,
+                      maxLines: 5,
+                      style: const TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Tanya harga bahan pokok...',
+                        hintStyle: const TextStyle(fontSize: 14, color: AppColors.textTertiary),
+                        filled: true,
+                        fillColor: AppColors.surfaceVariant,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(24),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                GestureDetector(
-                  onTap: _send,
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(
-                      color: _isSending ? AppColors.textTertiary : AppColors.primary,
-                      borderRadius: BorderRadius.circular(22),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _send,
+                    child: Container(
+                      width: 44, height: 44,
+                      decoration: BoxDecoration(
+                        color: _isSending ? AppColors.textTertiary : AppColors.primary,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: _isSending
+                          ? const Padding(
+                              padding: EdgeInsets.all(12),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                     ),
-                    child: _isSending
-                        ? const Padding(
-                            padding: EdgeInsets.all(12),
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                          )
-                        : const Icon(Icons.send_rounded, color: Colors.white, size: 20),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],

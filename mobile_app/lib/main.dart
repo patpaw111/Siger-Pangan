@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -12,13 +13,25 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Load .env sebelum app berjalan
-  await dotenv.load(fileName: '.env');
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Error loading .env: $e');
+  }
 
   // Inisialisasi notifikasi lokal
-  await NotificationService().init();
+  try {
+    await NotificationService().init();
+  } catch (e) {
+    debugPrint('Error init notifications: $e');
+  }
 
   // Inisialisasi background worker
-  await BackgroundWorker.init();
+  try {
+    await BackgroundWorker.init();
+  } catch (e) {
+    debugPrint('Error init background worker: $e');
+  }
 
   // Load preferences untuk state awal
   final prefs = await SharedPreferences.getInstance();
