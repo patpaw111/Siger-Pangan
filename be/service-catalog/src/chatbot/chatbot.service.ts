@@ -1,7 +1,7 @@
 import { Injectable, Inject, OnModuleInit, Logger } from '@nestjs/common';
 import type { ClientGrpc } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
-import { PriceService } from '../price/price.service';
+import { HttpService } from '@nestjs/axios';
 
 // Interface sesuai dengan grpc message di nlp.proto
 interface NlpRequest {
@@ -33,7 +33,7 @@ export class ChatbotService implements OnModuleInit {
 
   constructor(
     @Inject('NLP_PACKAGE') private readonly client: ClientGrpc,
-    private readonly priceService: PriceService,
+    private readonly httpService: HttpService,
   ) {}
 
   onModuleInit() {
@@ -91,24 +91,60 @@ export class ChatbotService implements OnModuleInit {
       return this.formatTextResponse('Komoditas apa yang ingin Anda cari harganya? Mohon sebutkan jenisnya (misal: Beras Medium, Daging Sapi).', nlpResponse);
     }
 
-    // Default cari harga hari ini / terbaru melalui API Prices Endpoint
-    // Catatan: Di priceService, kita punya findLatestPrices atau query melalui model.
-    // getLatestPrices di PriceService menerima (marketTypeId?, regionName?)
-    let queryResult = null;
     try {
-      const resp = await this.priceService.getLatestPrices({ marketTypeId: 1, kabupaten: nlpResponse.kabupaten });
-      // Filter result untuk mengambil SEMUA data yang cocok (multidata)
-      const specificData = resp.filter(item => 
-        item.commodityName.toLowerCase().includes(nlpResponse.commodity.toLowerCase())
-      );
+      // 1. Fetch data dari SiPangan
+      let sipanganData = [];
+      try {
+        const urlSipangan = `http://service-sipangan:3003/api/v1/sipangan-scraper/prices/latest?levelHargaId=3${nlpResponse.kabupaten ? '&kabupaten=' + encodeURIComponent(nlpResponse.kabupaten) : ''}`;
+        const resSipangan = await firstValueFrom(this.httpService.get(urlSipangan));
+        if (resSipangan.data?.success) {
+          sipanganData = resSipangan.data.data;
+        }
+      } catch (e) {
+        this.logger.error('Failed to fetch from SiPangan: ' + e.message);
+      }
+
+      // 2. Fetch data dari Bank Indonesia
+      let biData = [];
+      try {
+        const urlBi = `http://service-web-scraper:3000/api/v1/prices/latest?marketTypeId=1${nlpResponse.kabupaten ? '&regionName=' + encodeURIComponent(nlpResponse.kabupaten) : ''}`;
+        const resBi = await firstValueFrom(this.httpService.get(urlBi));
+        if (resBi.data?.success) {
+          biData = resBi.data.data;
+        }
+      } catch (e) {
+        this.logger.error('Failed to fetch from BI: ' + e.message);
+      }
+
+      // 3. Filter berdasarkan komoditas (dari NLP)
+      const keyword = nlpResponse.commodity.toLowerCase();
       
-      if (specificData.length > 0) {
-        // Gunakan replyText dari AI, jika kosong gunakan default
-        const textAnswer = nlpResponse.replyText || `Berikut adalah daftar harga ${nlpResponse.commodity} yang saya temukan:`;
-        return this.formatRichResponse(textAnswer, nlpResponse, specificData); // specificData sekarang berupa Array
+      const filteredSipangan = sipanganData.filter((item: any) => 
+        item.commodity_name && item.commodity_name.toLowerCase().includes(keyword)
+      ).map((item: any) => ({
+        id: item.id,
+        commodityName: item.commodity_name,
+        price: Number(item.price),
+        regionName: item.region_name,
+        source: 'SiPangan (Pemda)'
+      }));
+
+      const filteredBi = biData.filter((item: any) => 
+        item.commodityName && item.commodityName.toLowerCase().includes(keyword)
+      ).map((item: any) => ({
+        id: item.id,
+        commodityName: item.commodityName,
+        price: Number(item.price),
+        regionName: item.regionName,
+        source: 'Bank Indonesia'
+      }));
+
+      const combinedData = [...filteredSipangan, ...filteredBi];
+
+      if (combinedData.length > 0) {
+        const textAnswer = nlpResponse.replyText || `Berikut adalah daftar harga ${nlpResponse.commodity} yang saya temukan dari berbagai sumber:`;
+        return this.formatRichResponse(textAnswer, nlpResponse, combinedData);
       } else {
-        // Jangan gunakan nlpResponse.replyText karena AI berasumsi data ditemukan.
-        // Gunakan template kustom yang informatif.
         const wilayah = nlpResponse.kabupaten ? `di ${nlpResponse.kabupaten}` : 'untuk wilayah tersebut';
         const textAnswer = `Mohon maaf, saat ini data harga ${nlpResponse.commodity} ${wilayah} belum tersedia di sistem kami. Silakan coba cari komoditas atau daerah lain ya!`;
         return this.formatTextResponse(textAnswer, nlpResponse);
@@ -123,24 +159,15 @@ export class ChatbotService implements OnModuleInit {
       return this.formatTextResponse(nlpResponse.replyText || 'Komoditas apa yang ingin Anda bandingkan? Sebutkan jenisnya (misal: minyak, bawang).', nlpResponse);
     }
 
-    // Ambil data harga dari database, sama seperti handleQueryPrice
     try {
-      const resp = await this.priceService.getLatestPrices({ marketTypeId: 1, kabupaten: nlpResponse.kabupaten });
-      const specificData = resp.filter(item =>
-        item.commodityName.toLowerCase().includes(nlpResponse.commodity.toLowerCase())
-      );
-
-      if (specificData.length > 0) {
-        const textAnswer = nlpResponse.replyText || `Berikut perbandingan harga ${nlpResponse.commodity} yang saya temukan:`;
-        return this.formatRichResponse(textAnswer, nlpResponse, specificData);
-      } else {
-        // Jangan gunakan nlpResponse.replyText karena AI berasumsi data ditemukan.
-        const wilayah = nlpResponse.kabupaten ? `di ${nlpResponse.kabupaten}` : 'untuk wilayah tersebut';
-        const textAnswer = `Mohon maaf, perbandingan harga ${nlpResponse.commodity} ${wilayah} belum tersedia karena datanya kosong. Silakan coba komoditas lain.`;
-        return this.formatTextResponse(textAnswer, nlpResponse);
+      // Sama seperti query_price, kita kumpulkan semua dan return rich response
+      const res = await this.handleQueryPrice(nlpResponse);
+      if (res.type === 'rich_data') {
+        res.response = nlpResponse.replyText || `Berikut perbandingan harga ${nlpResponse.commodity} dari beberapa wilayah/sumber:`;
       }
+      return res;
     } catch (e) {
-      return this.formatTextResponse(`Gagal mengambil data dari database harga.`, nlpResponse);
+      return this.formatTextResponse(`Gagal mengambil perbandingan data dari database harga.`, nlpResponse);
     }
   }
 

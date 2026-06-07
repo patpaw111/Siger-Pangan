@@ -52,6 +52,26 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────────
+  # SERVICE C — NestJS (SiPangan Scraper)
+  # ──────────────────────────────────────────────
+  service-sipangan:
+    build:
+      context: .
+      dockerfile: ./be/service-web-scraper-sipangan/Dockerfile
+    container_name: siger-sipangan
+    env_file:
+      - ./be/service-web-scraper-sipangan/.env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - '3003:3003'
+    depends_on:
+      - postgres
+    networks:
+      - siger-network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
   # SERVICE AUTH — NestJS (Authentication & Users)
   # ──────────────────────────────────────────────
   service-auth:

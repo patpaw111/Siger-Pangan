@@ -133,11 +133,30 @@ services:
       - "3002:3000"
     volumes:
       - ./be/service-catalog/src:/app/src
+      - ./proto:/app/proto
       - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+
+  service-sipangan:
+    build:
+      context: .
+      dockerfile: ./be/service-web-scraper-sipangan/Dockerfile
+      target: development
+    container_name: siger-sipangan-dev
+    restart: unless-stopped
+    env_file:
+      - ./be/service-web-scraper-sipangan/.env
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./be/service-web-scraper-sipangan/src:/app/src
+      - /app/node_modules
+    depends_on:
+      postgres:
         condition: service_healthy
 
   # ── Nginx API Gateway ─────────────────────────────────────────
@@ -153,6 +172,7 @@ services:
       - service-web-scraper
       - service-auth
       - service-catalog
+      - service-sipangan
 
   # ── Cloudflare Tunnel (Opsi 2: Persistent Zero Trust) ────────────
   cloudflared:

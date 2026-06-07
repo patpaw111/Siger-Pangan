@@ -11,7 +11,7 @@ import { ScraperModule } from './scraper/scraper.module';
 import { PriceModule } from './price/price.module';
 import { PriceRecord } from './price/entities/price-record.entity';
 import { ScraperRun } from './scraper/entities/scraper-run.entity';
-import { ChatbotModule } from './chatbot/chatbot.module';
+
 import { CommonAuthModule } from './common/common-auth.module';
 
 @Module({
@@ -69,7 +69,7 @@ import { CommonAuthModule } from './common/common-auth.module';
     // ── 6. Feature Modules ─────────────────────────────────
     ScraperModule,
     PriceModule,
-    ChatbotModule,
+
     CommonAuthModule,
   ],
   controllers: [AppController],

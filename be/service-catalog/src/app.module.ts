@@ -6,6 +6,8 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CommoditiesModule } from './commodities/commodities.module';
 import { RegionsModule } from './regions/regions.module';
+import { ChatbotModule } from './chatbot/chatbot.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,6 +27,7 @@ import { RegionsModule } from './regions/regions.module';
     AuthModule,
     CommoditiesModule,
     RegionsModule,
+    ChatbotModule,
   ],
   controllers: [AppController],
   providers: [AppService],

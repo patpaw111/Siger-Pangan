@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { join } from 'path';
+import { HttpModule } from '@nestjs/axios';
 import { ChatbotController } from './chatbot.controller';
 import { ChatbotService } from './chatbot.service';
-import { PriceModule } from '../price/price.module'; // To query actual prices
 
 @Module({
   imports: [
@@ -18,7 +18,7 @@ import { PriceModule } from '../price/price.module'; // To query actual prices
         },
       },
     ]),
-    PriceModule, // Import so we can use PriceService
+    HttpModule,
   ],
   controllers: [ChatbotController],
   providers: [ChatbotService],
