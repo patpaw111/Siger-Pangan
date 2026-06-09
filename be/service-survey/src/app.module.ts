@@ -4,10 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
-import { CommoditiesModule } from './commodities/commodities.module';
-import { RegionsModule } from './regions/regions.module';
-import { ChatbotModule } from './chatbot/chatbot.module';
-import { NotificationsModule } from './notifications/notifications.module';
+import { SurveyModule } from './survey/survey.module';
 
 @Module({
   imports: [
@@ -26,10 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
       }),
     }),
     AuthModule,
-    CommoditiesModule,
-    RegionsModule,
-    ChatbotModule,
-    NotificationsModule,
+    SurveyModule,
   ],
   controllers: [AppController],
   providers: [AppService],

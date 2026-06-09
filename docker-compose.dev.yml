@@ -159,6 +159,24 @@ services:
       postgres:
         condition: service_healthy
 
+  service-survey:
+    build:
+      context: ./be/service-survey
+      dockerfile: Dockerfile
+      target: development
+    container_name: siger-survey-dev
+    restart: unless-stopped
+    env_file:
+      - ./be/service-survey/.env
+    ports:
+      - "3004:3004"
+    volumes:
+      - ./be/service-survey/src:/app/src
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # ── Nginx API Gateway ─────────────────────────────────────────
   nginx:
     image: nginx:alpine
@@ -173,6 +191,7 @@ services:
       - service-auth
       - service-catalog
       - service-sipangan
+      - service-survey
 
   # ── Cloudflare Tunnel (Opsi 2: Persistent Zero Trust) ────────────
   cloudflared:

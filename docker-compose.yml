@@ -72,6 +72,26 @@ services:
     restart: unless-stopped
 
   # ──────────────────────────────────────────────
+  # SERVICE SURVEY — NestJS (Manajemen Kuesioner)
+  # ──────────────────────────────────────────────
+  service-survey:
+    build:
+      context: .
+      dockerfile: ./be/service-survey/Dockerfile
+    container_name: siger-survey
+    env_file:
+      - ./be/service-survey/.env
+    environment:
+      - NODE_ENV=production
+    ports:
+      - '3004:3004'
+    depends_on:
+      - postgres
+    networks:
+      - siger-network
+    restart: unless-stopped
+
+  # ──────────────────────────────────────────────
   # SERVICE AUTH — NestJS (Authentication & Users)
   # ──────────────────────────────────────────────
   service-auth:

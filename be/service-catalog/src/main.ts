@@ -14,6 +14,8 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port, '0.0.0.0');
+  console.log(`🚀 Service Catalog berjalan di: http://0.0.0.0:${port}/api/v1/catalog`);
 }
 bootstrap();
