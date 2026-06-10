@@ -11,6 +11,7 @@ import { SipanganScraperModule } from './scraper/sipangan-scraper.module';
 import { PriceModule } from './price/price.module';
 import { SipanganPriceRecord } from './scraper/entities/sipangan-price-record.entity';
 import { SipanganScraperRun } from './scraper/entities/sipangan-scraper-run.entity';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -64,6 +65,9 @@ import { SipanganScraperRun } from './scraper/entities/sipangan-scraper-run.enti
 
     // ── 7. Price Module ─────────────────────────────────────
     PriceModule,
+
+    // ── 8. Auth Module ──────────────────────────────────────
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

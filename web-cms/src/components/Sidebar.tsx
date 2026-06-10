@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, Map, Search, Users, X, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Package, Map, Search, Users, X, ChevronRight, TrendingUp } from 'lucide-react';
 import api from '@/lib/api';
 import { cn } from '@/lib/utils'; // Assuming this exists or using simple logic
 
@@ -30,6 +30,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   const menuItems = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Pusat Harga', href: '/dashboard/prices', icon: TrendingUp },
     { name: 'Master Komoditas', href: '/dashboard/komoditas', icon: Package },
     { name: 'Master Wilayah', href: '/dashboard/wilayah', icon: Map },
     { name: 'Kontrol Scraper', href: '/dashboard/scraper', icon: Search },

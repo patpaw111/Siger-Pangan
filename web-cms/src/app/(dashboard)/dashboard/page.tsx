@@ -16,6 +16,7 @@ const MOCK_PRICES = [
 ];
 
 export default function DashboardPage() {
+  const [dataSource, setDataSource] = useState<'bi' | 'sipangan'>('bi');
   const [counts, setCounts] = useState<{commodities: number | null, regions: number | null}>({ commodities: null, regions: null });
   const [scraperStatus, setScraperStatus] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -24,10 +25,18 @@ export default function DashboardPage() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
+      const isSiPangan = dataSource === 'sipangan';
+      const endpoints = {
+        commodities: isSiPangan ? '/sipangan-scraper/prices/commodities' : '/prices/commodities',
+        regions: isSiPangan ? '/sipangan-scraper/prices/regions' : '/prices/regions',
+        status: isSiPangan ? '/sipangan-scraper/status' : '/scraper/status',
+        latest: isSiPangan ? '/sipangan-scraper/prices/latest' : '/prices/latest'
+      };
+
       const results = await Promise.allSettled([
-        api.get('/prices/commodities'),
-        api.get('/prices/regions'),
-        api.get('/scraper/status')
+        api.get(endpoints.commodities),
+        api.get(endpoints.regions),
+        api.get(endpoints.status)
       ]);
 
       const [commRes, regRes, scraperRes] = results;
@@ -45,7 +54,7 @@ export default function DashboardPage() {
 
       // Fetch Latest Prices
       try {
-        const pricesRes = await api.get('/prices/latest');
+        const pricesRes = await api.get(endpoints.latest);
         setPrices(pricesRes.data.data || []);
       } catch (err) {
         console.error('Prices error:', err);
@@ -58,25 +67,39 @@ export default function DashboardPage() {
 
         // Derive activities from scraper status
         const newActivities = [];
-        if (data.lastCompletedJob) {
-          newActivities.push({
-            id: 'scrape-' + data.lastCompletedJob.id,
-            title: 'Scraper Selesai',
-            desc: `Job #${data.lastCompletedJob.id} berhasil diperbarui.`,
-            time: new Date(data.lastCompletedJob.finishedOn).toLocaleTimeString(),
-            type: 'success',
-            color: 'bg-indigo-500'
-          });
-        }
-        if (data.queue && data.queue.active > 0) {
-          newActivities.push({
-            id: 'scrape-active',
-            title: 'Scraper Berjalan',
-            desc: `${data.queue.active} proses sedang aktif.`,
-            time: 'Saat ini',
-            type: 'info',
-            color: 'bg-amber-500'
-          });
+        
+        if (isSiPangan) {
+          if (data.lastRun) {
+            newActivities.push({
+              id: 'scrape-' + data.lastRun.id,
+              title: 'Scraper SiPangan Selesai',
+              desc: `Dijalankan pada ${new Date(data.lastRun.startedAt).toLocaleTimeString()}`,
+              time: data.lastRun.finishedAt ? new Date(data.lastRun.finishedAt).toLocaleTimeString() : 'Berjalan',
+              type: data.lastRun.status === 'success' ? 'success' : 'error',
+              color: data.lastRun.status === 'success' ? 'bg-indigo-500' : 'bg-red-500'
+            });
+          }
+        } else {
+          if (data.lastCompletedJob) {
+            newActivities.push({
+              id: 'scrape-' + data.lastCompletedJob.id,
+              title: 'Scraper BI Selesai',
+              desc: `Job #${data.lastCompletedJob.id} berhasil diperbarui.`,
+              time: new Date(data.lastCompletedJob.finishedOn).toLocaleTimeString(),
+              type: 'success',
+              color: 'bg-indigo-500'
+            });
+          }
+          if (data.queue && data.queue.active > 0) {
+            newActivities.push({
+              id: 'scrape-active',
+              title: 'Scraper BI Berjalan',
+              desc: `${data.queue.active} proses sedang aktif.`,
+              time: 'Saat ini',
+              type: 'info',
+              color: 'bg-amber-500'
+            });
+          }
         }
         setActivities(newActivities);
       } else {
@@ -85,7 +108,7 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Unexpected error in dashboard:', error);
     }
-  }, []);
+  }, [dataSource]);
 
   useEffect(() => {
     fetchDashboardData();
@@ -95,11 +118,10 @@ export default function DashboardPage() {
 
   const handleUpdatePrice = async () => {
     setIsUpdating(true);
-    const toastId = toast.loading('Memulai sinkronisasi data harga...');
+    const toastId = toast.loading(`Memulai sinkronisasi data harga ${dataSource === 'sipangan' ? 'SiPangan' : 'Bank Indonesia'}...`);
     try {
-      await api.post('/scraper/trigger', {
-        marketTypeIds: [1] // Default tradisional
-      });
+      const endpoint = dataSource === 'sipangan' ? '/sipangan-scraper/trigger' : '/scraper/trigger';
+      await api.post(endpoint, dataSource === 'bi' ? { marketTypeIds: [1] } : {});
       toast.success('Pembaruan Harga Dijadwalkan', {
         id: toastId,
         description: 'Bot scraper sedang berjalan di latar belakang untuk mengambil data dari server pusat.'
@@ -127,7 +149,34 @@ export default function DashboardPage() {
       {/* Welcome Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">Dashboard Overview</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-2">
+            <h1 className="text-3xl font-black text-slate-900 dark:text-zinc-50 tracking-tight">Dashboard Overview</h1>
+            {/* Source Toggle */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex bg-slate-100 dark:bg-zinc-800/50 rounded-xl p-1 border border-slate-200 dark:border-zinc-800 shadow-sm">
+                <button
+                  onClick={() => setDataSource('bi')}
+                  className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${
+                    dataSource === 'bi'
+                      ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  Bank Indonesia
+                </button>
+                <button
+                  onClick={() => setDataSource('sipangan')}
+                  className={`px-4 py-1.5 text-sm font-bold rounded-lg transition-all ${
+                    dataSource === 'sipangan'
+                      ? 'bg-white dark:bg-zinc-700 text-indigo-600 dark:text-indigo-400 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-zinc-300'
+                  }`}
+                >
+                  SiPangan
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="flex items-center gap-2 mt-1 text-slate-500 dark:text-zinc-400">
             <Calendar size={14} />
             <p className="text-sm font-medium">{today}</p>
@@ -176,7 +225,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Price Chart Section */}
-      <PriceChart />
+      <PriceChart dataSource={dataSource} />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
@@ -228,7 +277,11 @@ export default function DashboardPage() {
                       <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">
                         {new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(item.price)}
                       </p>
-                      <p className="text-[10px] text-slate-400 mt-0.5 font-medium">{item.priceType === 'harga' ? 'Harga Rata-rata' : item.priceType}</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5 font-medium">
+                        {dataSource === 'bi' 
+                          ? (item.priceType === 'harga' ? 'Harga Rata-rata' : item.priceType) 
+                          : `Harga Mentah - ${item.levelHargaName || 'Eceran'}`}
+                      </p>
                     </td>
                     <td className="px-6 py-4 hidden md:table-cell">
                       <span className="text-xs text-slate-500 font-medium">

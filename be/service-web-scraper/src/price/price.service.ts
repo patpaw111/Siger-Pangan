@@ -70,20 +70,31 @@ export class PriceService {
     marketTypeId: number;
     kabupaten?: string;
     days: number;
+    startDate?: string;
+    endDate?: string;
   }): Promise<PriceRecord[]> {
-    const cacheKey = `prices:history:${params.commodityId ?? params.commodityName}:m${params.marketTypeId}:${params.kabupaten ?? 'all'}:${params.days}d`;
+    const cacheKey = `prices:history:${params.commodityId ?? params.commodityName}:m${params.marketTypeId}:${params.kabupaten ?? 'all'}:${params.days}d:${params.startDate ?? 'x'}:${params.endDate ?? 'x'}`;
 
     const cached = await this.redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    const fromDate = subDays(new Date(), params.days);
-
     const qb = this.priceRepo
       .createQueryBuilder('p')
       .where('p.market_type_id = :marketTypeId', { marketTypeId: params.marketTypeId })
-      .andWhere('p.price_date >= :fromDate', { fromDate })
       .andWhere('p.price IS NOT NULL')
       .orderBy('p.price_date', 'ASC');
+
+    if (params.startDate && params.endDate) {
+      qb.andWhere('p.price_date >= :startDate', { startDate: params.startDate });
+      qb.andWhere('p.price_date <= :endDate', { endDate: params.endDate });
+    } else if (params.startDate) {
+      qb.andWhere('p.price_date >= :startDate', { startDate: params.startDate });
+    } else if (params.endDate) {
+      qb.andWhere('p.price_date <= :endDate', { endDate: params.endDate });
+    } else {
+      const fromDate = subDays(new Date(), params.days);
+      qb.andWhere('p.price_date >= :fromDate', { fromDate });
+    }
 
     if (params.commodityId) {
       qb.andWhere('p.commodity_bi_id = :id', { id: params.commodityId });

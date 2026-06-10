@@ -31,6 +31,8 @@ export class PriceController {
     @Query('levelHargaId', new DefaultValuePipe(3), ParseIntPipe) levelHargaId: number,
     @Query('kabupaten') kabupaten?: string,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number = 30,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     const data = await this.priceService.getPriceHistory({
       commodityId,
@@ -38,6 +40,8 @@ export class PriceController {
       levelHargaId,
       kabupaten,
       days,
+      startDate,
+      endDate,
     });
     return { success: true, data, total: data.length };
   }

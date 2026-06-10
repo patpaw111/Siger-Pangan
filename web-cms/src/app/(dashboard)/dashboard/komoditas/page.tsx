@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Loader2, X, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, X, AlertCircle, Search, Database, Globe, ArrowUpDown, ArrowDownAZ, ArrowUpZA } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 
 interface Commodity {
   id: string;
@@ -14,10 +15,27 @@ interface Commodity {
   updated_at: string;
 }
 
+interface SipanganCommodity {
+  id: number;
+  name: string;
+}
+
 export default function KomoditasPage() {
+  const [activeTab, setActiveTab] = useState<'bi' | 'sipangan'>('bi');
+
+  // Bank Indonesia (BI) State
   const [commodities, setCommodities] = useState<Commodity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoadingBI, setIsLoadingBI] = useState(true);
+  const [errorBI, setErrorBI] = useState<string | null>(null);
+  const [biSearch, setBiSearch] = useState('');
+  const [sortOrderBI, setSortOrderBI] = useState<'asc' | 'desc'>('asc');
+
+  // SiPangan State
+  const [sipanganData, setSipanganData] = useState<SipanganCommodity[]>([]);
+  const [isLoadingSipangan, setIsLoadingSipangan] = useState(true);
+  const [errorSipangan, setErrorSipangan] = useState<string | null>(null);
+  const [sipanganSearch, setSipanganSearch] = useState('');
+  const [sortOrderSipangan, setSortOrderSipangan] = useState<'asc' | 'desc'>('asc');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -31,13 +49,11 @@ export default function KomoditasPage() {
     image_url: ''
   });
 
-  const fetchCommodities = async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchBICommodities = async () => {
+    setIsLoadingBI(true);
+    setErrorBI(null);
     try {
-      // Endpoint depends on Nginx proxy pointing to service-catalog
       const res = await api.get('/catalog/commodities');
-      // Assume success returns standard nested data array or direct array
       const data = res.data?.data || res.data;
       if (Array.isArray(data)) {
         setCommodities(data);
@@ -45,25 +61,35 @@ export default function KomoditasPage() {
         setCommodities([]);
       }
     } catch (err: any) {
-      console.error('Error fetching commodities:', err);
-      // Attempt fallback to scraper API if catalog is not available
-      try {
-        const fallbackRes = await api.get('/prices/commodities');
-        const fallbackData = fallbackRes.data?.data || fallbackRes.data;
-        if (Array.isArray(fallbackData)) {
-          setCommodities(fallbackData);
-          toast.warning('Menggunakan data komoditas dari service-scraper (Read Only)');
-        }
-      } catch (fallbackErr) {
-        setError('Gagal memuat data komoditas dari server.');
-      }
+      console.error('Error fetching BI commodities:', err);
+      setErrorBI('Gagal memuat data master Bank Indonesia.');
     } finally {
-      setIsLoading(false);
+      setIsLoadingBI(false);
+    }
+  };
+
+  const fetchSipanganCommodities = async () => {
+    setIsLoadingSipangan(true);
+    setErrorSipangan(null);
+    try {
+      const res = await api.get('/sipangan-scraper/prices/commodities');
+      const data = res.data?.data || res.data;
+      if (Array.isArray(data)) {
+        setSipanganData(data);
+      } else {
+        setSipanganData([]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching SiPangan commodities:', err);
+      setErrorSipangan('Gagal memuat data dari SiPangan Bapanas.');
+    } finally {
+      setIsLoadingSipangan(false);
     }
   };
 
   useEffect(() => {
-    fetchCommodities();
+    fetchBICommodities();
+    fetchSipanganCommodities();
   }, []);
 
   const openModal = (commodity?: Commodity) => {
@@ -106,17 +132,15 @@ export default function KomoditasPage() {
       };
 
       if (formData.id) {
-        // Edit Mode
         await api.patch(`/catalog/commodities/${formData.id}`, payload);
         toast.success('Komoditas berhasil diperbarui');
       } else {
-        // Add Mode
         await api.post('/catalog/commodities', payload);
         toast.success('Komoditas berhasil ditambahkan');
       }
       
       closeModal();
-      fetchCommodities(); // Refresh table
+      fetchBICommodities();
     } catch (err: any) {
       console.error('Error saving commodity:', err);
       const errMsg = err.response?.data?.message || err.message || 'Gagal menyimpan komoditas';
@@ -142,99 +166,242 @@ export default function KomoditasPage() {
     }
   };
 
+  const filteredSipanganData = sipanganData
+    .filter(c => c.name.toLowerCase().includes(sipanganSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrderSipangan === 'asc') return a.name.localeCompare(b.name);
+      return b.name.localeCompare(a.name);
+    });
+
+  const filteredBICommodities = commodities
+    .filter(c => c.name.toLowerCase().includes(biSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrderBI === 'asc') return a.name.localeCompare(b.name);
+      return b.name.localeCompare(a.name);
+    });
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-50">Manajemen Komoditas</h1>
-          <p className="text-slate-500 dark:text-zinc-400 mt-1">Kelola data pangan seperti Beras, Cabai, Bawang, dsb.</p>
+          <p className="text-slate-500 dark:text-zinc-400 mt-1">Kelola data pangan utama dan pantau data referensi dari eksternal.</p>
         </div>
-        <button
-          onClick={() => openModal()}
-          className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm"
-        >
-          <Plus size={18} />
-          Tambah Komoditas
-        </button>
-      </div>
-
-      <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-            <Loader2 className="animate-spin w-8 h-8 mb-2" />
-            <p>Memuat data komoditas...</p>
-          </div>
-        ) : error ? (
-          <div className="h-64 flex flex-col items-center justify-center text-red-500">
-            <AlertCircle className="w-8 h-8 mb-2" />
-            <p>{error}</p>
-          </div>
-        ) : commodities.length === 0 ? (
-          <div className="h-64 flex flex-col items-center justify-center text-slate-400">
-            <p>Belum ada data komoditas.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 dark:bg-zinc-950 text-slate-500 dark:text-zinc-400 font-medium border-b border-slate-200 dark:border-zinc-800">
-                <tr>
-                  <th className="px-6 py-4">Nama Komoditas</th>
-                  <th className="px-6 py-4">Satuan</th>
-                  <th className="px-6 py-4 text-center">Gambar</th>
-                  <th className="px-6 py-4 text-right">Aksi</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800 text-slate-700 dark:text-zinc-300">
-                {commodities.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors">
-                    <td className="px-6 py-4 font-bold">{c.name}</td>
-                    <td className="px-6 py-4">
-                      <span className="bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-2.5 py-1 rounded-full text-xs font-medium">
-                        {c.unit || '-'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {c.image_url ? (
-                        <div className="flex justify-center">
-                          <img src={c.image_url} alt={c.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-zinc-800" />
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 text-xs italic">Tidak ada</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openModal(c)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
-                          title="Edit Komoditas"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(c.id, c.name)}
-                          className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
-                          title="Hapus Komoditas"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        
+        {/* Only show Add button on BI tab */}
+        {activeTab === 'bi' && (
+          <button
+            onClick={() => openModal()}
+            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            Tambah Komoditas
+          </button>
         )}
       </div>
 
-      {/* Form Modal */}
+      {/* Modern Tabs */}
+      <div className="flex p-1 space-x-1 bg-slate-100 dark:bg-zinc-800/50 rounded-2xl w-full max-w-md">
+        <button
+          onClick={() => setActiveTab('bi')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'bi' 
+              ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+              : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Database size={16} />
+          Master Data (BI)
+        </button>
+        <button
+          onClick={() => setActiveTab('sipangan')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'sipangan' 
+              ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-400 shadow-sm' 
+              : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Globe size={16} />
+          SiPangan (Bapanas)
+        </button>
+      </div>
+
+      {/* --- TAB CONTENT: BANK INDONESIA --- */}
+      {activeTab === 'bi' && (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden animate-in fade-in duration-300 slide-in-from-bottom-4">
+          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-zinc-200 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                Data Internal Bank Indonesia
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 ml-4">Mendukung Operasi Penuh (Tambah, Edit, Hapus).</p>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search size={16} className="text-slate-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Cari nama komoditas BI..."
+                value={biSearch}
+                onChange={(e) => setBiSearch(e.target.value)}
+                className="w-full sm:w-64 pl-10 pr-4 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+          
+          <DataTable 
+              columns={[
+                {
+                  header: 'NAMA KOMODITAS',
+                  headerClassName: 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group select-none',
+                  cell: (c) => <span className="font-bold">{c.name}</span>,
+                },
+                {
+                  header: 'SATUAN',
+                  cell: (c) => (
+                    <span className="bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 px-2.5 py-1 rounded-full text-xs font-medium">
+                      {c.unit || '-'}
+                    </span>
+                  ),
+                },
+                {
+                  header: 'GAMBAR',
+                  cellClassName: 'text-center',
+                  headerClassName: 'text-center',
+                  cell: (c) => (
+                    c.image_url ? (
+                      <div className="flex justify-center">
+                        <img src={c.image_url} alt={c.name} className="w-10 h-10 rounded-lg object-cover bg-slate-100 dark:bg-zinc-800" />
+                      </div>
+                    ) : (
+                      <span className="text-slate-400 text-xs italic">Tidak ada</span>
+                    )
+                  ),
+                },
+                {
+                  header: 'AKSI',
+                  cellClassName: 'text-right',
+                  headerClassName: 'text-right',
+                  cell: (c) => (
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openModal(c)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                        title="Edit Komoditas"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c.id, c.name)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Hapus Komoditas"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ),
+                },
+              ]} 
+              data={filteredBICommodities} 
+              keyExtractor={(c) => c.id} 
+              isLoading={isLoadingBI}
+              emptyState={
+                <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                  {biSearch ? (
+                    <>
+                      <Search className="w-8 h-8 mb-2 opacity-50" />
+                      <p>Pencarian "{biSearch}" tidak ditemukan.</p>
+                    </>
+                  ) : (
+                    <p>Belum ada data komoditas internal.</p>
+                  )}
+                </div>
+              }
+            />
+        </div>
+      )}
+
+      {/* --- TAB CONTENT: SIPANGAN --- */}
+      {activeTab === 'sipangan' && (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden animate-in fade-in duration-300 slide-in-from-bottom-4">
+          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-zinc-200 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                Data Referensi SiPangan (Read-Only)
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 ml-4">Otomatis diambil dari portal Bapanas. {sipanganData.length} komoditas terdeteksi.</p>
+            </div>
+            
+            {/* Search Bar & Sort */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setSortOrderSipangan(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                title="Urutkan A-Z / Z-A"
+              >
+                {sortOrderSipangan === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpZA size={16} />}
+              </button>
+              <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cari nama komoditas..."
+                  value={sipanganSearch}
+                  onChange={(e) => setSipanganSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/50 outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+          </div>
+          
+          {isLoadingSipangan ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="animate-spin w-8 h-8 mb-2" />
+              <p>Memuat data SiPangan...</p>
+            </div>
+          ) : errorSipangan ? (
+            <div className="h-64 flex flex-col items-center justify-center text-red-500">
+              <AlertCircle className="w-8 h-8 mb-2" />
+              <p>{errorSipangan}</p>
+            </div>
+          ) : filteredSipanganData.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              <Search className="w-8 h-8 mb-2 opacity-50" />
+              <p>Pencarian "{sipanganSearch}" tidak ditemukan.</p>
+            </div>
+          ) : (
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filteredSipanganData.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-zinc-800 hover:border-teal-200 dark:hover:border-teal-500/30 hover:bg-teal-50/50 dark:hover:bg-teal-500/5 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 text-xs font-bold">
+                        #{c.id}
+                      </div>
+                      <span className="font-semibold text-slate-700 dark:text-zinc-200 text-sm">{c.name}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Form Modal (Hanya untuk BI) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
             <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-zinc-800">
               <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50">
-                {formData.id ? 'Edit Komoditas' : 'Tambah Komoditas Baru'}
+                {formData.id ? 'Edit Komoditas BI' : 'Tambah Komoditas BI'}
               </h3>
               <button 
                 onClick={closeModal}

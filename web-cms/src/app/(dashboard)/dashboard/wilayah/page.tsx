@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Loader2, X, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Loader2, X, AlertCircle, Search, Database, Globe, ArrowUpDown, ArrowDownAZ, ArrowUpZA } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 
 interface Region {
   id: string;
@@ -14,9 +15,21 @@ interface Region {
 }
 
 export default function WilayahPage() {
+  const [activeTab, setActiveTab] = useState<'bi' | 'sipangan'>('bi');
+
+  // Bank Indonesia (BI) State
   const [regions, setRegions] = useState<Region[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoadingBI, setIsLoadingBI] = useState(true);
+  const [errorBI, setErrorBI] = useState<string | null>(null);
+  const [biSearch, setBiSearch] = useState('');
+  const [sortOrderBI, setSortOrderBI] = useState<'asc' | 'desc'>('asc');
+
+  // SiPangan State
+  const [sipanganRegions, setSipanganRegions] = useState<string[]>([]);
+  const [isLoadingSipangan, setIsLoadingSipangan] = useState(true);
+  const [errorSipangan, setErrorSipangan] = useState<string | null>(null);
+  const [sipanganSearch, setSipanganSearch] = useState('');
+  const [sortOrderSipangan, setSortOrderSipangan] = useState<'asc' | 'desc'>('asc');
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,9 +42,9 @@ export default function WilayahPage() {
     type: 'REGENCY' as Region['type'],
   });
 
-  const fetchRegions = async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchBIRegions = async () => {
+    setIsLoadingBI(true);
+    setErrorBI(null);
     try {
       const res = await api.get('/catalog/regions');
       const data = res.data?.data || res.data;
@@ -41,25 +54,35 @@ export default function WilayahPage() {
         setRegions([]);
       }
     } catch (err: any) {
-      console.error('Error fetching regions:', err);
-      // Attempt fallback to scraper API if catalog is not available
-      try {
-        const fallbackRes = await api.get('/prices/regions');
-        const fallbackData = fallbackRes.data?.data || fallbackRes.data;
-        if (Array.isArray(fallbackData)) {
-          setRegions(fallbackData);
-          toast.warning('Menggunakan data wilayah dari service-scraper (Read Only)');
-        }
-      } catch (fallbackErr) {
-        setError('Gagal memuat data wilayah dari server.');
-      }
+      console.error('Error fetching BI regions:', err);
+      setErrorBI('Gagal memuat data wilayah internal dari server.');
     } finally {
-      setIsLoading(false);
+      setIsLoadingBI(false);
+    }
+  };
+
+  const fetchSipanganRegions = async () => {
+    setIsLoadingSipangan(true);
+    setErrorSipangan(null);
+    try {
+      const res = await api.get('/sipangan-scraper/prices/regions');
+      const data = res.data?.data || res.data;
+      if (Array.isArray(data)) {
+        setSipanganRegions(data);
+      } else {
+        setSipanganRegions([]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching SiPangan regions:', err);
+      setErrorSipangan('Gagal memuat data wilayah dari SiPangan.');
+    } finally {
+      setIsLoadingSipangan(false);
     }
   };
 
   useEffect(() => {
-    fetchRegions();
+    fetchBIRegions();
+    fetchSipanganRegions();
   }, []);
 
   const openModal = (region?: Region) => {
@@ -94,14 +117,12 @@ export default function WilayahPage() {
     setIsSubmitting(true);
     try {
       if (formData.id) {
-        // Update
         await api.patch(`/catalog/regions/${formData.id}`, {
           name: formData.name,
           type: formData.type,
         });
         toast.success('Data wilayah berhasil diperbarui');
       } else {
-        // Create
         await api.post('/catalog/regions', {
           name: formData.name,
           type: formData.type,
@@ -109,7 +130,7 @@ export default function WilayahPage() {
         toast.success('Data wilayah berhasil ditambahkan');
       }
       closeModal();
-      fetchRegions();
+      fetchBIRegions();
     } catch (err: any) {
       console.error('Submit error:', err);
       toast.error(err.response?.data?.message || 'Gagal menyimpan data wilayah');
@@ -126,7 +147,7 @@ export default function WilayahPage() {
     try {
       await api.delete(`/catalog/regions/${id}`);
       toast.success('Wilayah berhasil dihapus');
-      fetchRegions();
+      fetchBIRegions();
     } catch (err: any) {
       console.error('Delete error:', err);
       toast.error(err.response?.data?.message || 'Gagal menghapus wilayah');
@@ -151,159 +172,297 @@ export default function WilayahPage() {
     }
   };
 
+  const filteredBIRegions = regions
+    .filter(r => r.name.toLowerCase().includes(biSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrderBI === 'asc') return a.name.localeCompare(b.name);
+      return b.name.localeCompare(a.name);
+    });
+
+  const filteredSipanganRegions = sipanganRegions
+    .filter(r => r.toLowerCase().includes(sipanganSearch.toLowerCase()))
+    .sort((a, b) => {
+      if (sortOrderSipangan === 'asc') return a.localeCompare(b);
+      return b.localeCompare(a);
+    });
+
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">Master Wilayah</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-zinc-50">Manajemen Wilayah</h1>
           <p className="text-slate-500 dark:text-zinc-400 mt-1">Kelola data provinsi, kota, dan kabupaten.</p>
         </div>
+        
+        {/* Only show Add button on BI tab */}
+        {activeTab === 'bi' && (
+          <button
+            onClick={() => openModal()}
+            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm"
+          >
+            <Plus size={18} />
+            Tambah Wilayah
+          </button>
+        )}
+      </div>
+
+      {/* Modern Tabs */}
+      <div className="flex p-1 space-x-1 bg-slate-100 dark:bg-zinc-800/50 rounded-2xl w-full max-w-md">
         <button
-          onClick={() => openModal()}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5 active:translate-y-0"
+          onClick={() => setActiveTab('bi')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'bi' 
+              ? 'bg-white dark:bg-zinc-900 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+              : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+          }`}
         >
-          <Plus size={18} />
-          Tambah Wilayah
+          <Database size={16} />
+          Master Data (BI)
+        </button>
+        <button
+          onClick={() => setActiveTab('sipangan')}
+          className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'sipangan' 
+              ? 'bg-white dark:bg-zinc-900 text-teal-600 dark:text-teal-400 shadow-sm' 
+              : 'text-slate-500 hover:text-slate-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+          }`}
+        >
+          <Globe size={16} />
+          SiPangan (Bapanas)
         </button>
       </div>
 
-      {error && (
-        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-2xl flex items-start gap-3 text-red-600 dark:text-red-400">
-          <AlertCircle className="shrink-0 mt-0.5" size={20} />
-          <div>
-            <h3 className="font-semibold">Terjadi Kesalahan</h3>
-            <p className="text-sm mt-1 opacity-90">{error}</p>
-            <button 
-              onClick={fetchRegions}
-              className="mt-2 text-sm font-medium underline underline-offset-2 hover:opacity-80"
-            >
-              Coba Lagi
-            </button>
+      {/* --- TAB CONTENT: BANK INDONESIA --- */}
+      {activeTab === 'bi' && (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden animate-in fade-in duration-300 slide-in-from-bottom-4">
+          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-zinc-200 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+                Data Internal Bank Indonesia
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 ml-4">Mendukung Operasi Penuh (Tambah, Edit, Hapus).</p>
+            </div>
+            
+            {/* Search Bar & Sort */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cari nama wilayah BI..."
+                  value={biSearch}
+                  onChange={(e) => setBiSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/50 outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+            </div>
           </div>
+          
+          {isLoadingBI ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="animate-spin w-8 h-8 mb-2" />
+              <p>Memuat data wilayah BI...</p>
+            </div>
+          ) : errorBI ? (
+            <div className="h-64 flex flex-col items-center justify-center text-red-500">
+              <AlertCircle className="w-8 h-8 mb-2" />
+              <p>{errorBI}</p>
+            </div>
+          ) : filteredBIRegions.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              {biSearch ? (
+                <>
+                  <Search className="w-8 h-8 mb-2 opacity-50" />
+                  <p>Pencarian "{biSearch}" tidak ditemukan.</p>
+                </>
+              ) : (
+                <p>Belum ada data wilayah internal.</p>
+              )}
+            </div>
+          ) : (
+            <DataTable
+              columns={[
+                {
+                  header: 'NAMA WILAYAH',
+                  headerClassName: 'cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors group select-none',
+                  cell: (region) => <span className="font-bold">{region.name}</span>,
+                },
+                {
+                  header: 'TIPE',
+                  cell: (region) => (
+                    <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getTypeColor(region.type)}`}>
+                      {translateType(region.type)}
+                    </span>
+                  ),
+                },
+                {
+                  header: 'DITAMBAHKAN PADA',
+                  cellClassName: 'whitespace-nowrap text-slate-500 dark:text-zinc-400',
+                  cell: (region) => (
+                    new Date(region.created_at).toLocaleDateString('id-ID', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })
+                  ),
+                },
+                {
+                  header: 'AKSI',
+                  cellClassName: 'text-right',
+                  headerClassName: 'text-right',
+                  cell: (region) => (
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => openModal(region)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-colors"
+                        title="Edit Wilayah"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(region.id, region.name)}
+                        className="p-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                        title="Hapus Wilayah"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ),
+                },
+              ]}
+              data={filteredBIRegions}
+              keyExtractor={(r) => r.id}
+              isLoading={isLoadingBI}
+              emptyState={
+                <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+                  {biSearch ? (
+                    <>
+                      <Search className="w-8 h-8 mb-2 opacity-50" />
+                      <p>Pencarian "{biSearch}" tidak ditemukan.</p>
+                    </>
+                  ) : (
+                    <p>Belum ada data wilayah internal.</p>
+                  )}
+                </div>
+              }
+            />
+          )}
         </div>
       )}
 
-      <div className="bg-white dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 rounded-3xl overflow-hidden shadow-sm backdrop-blur-xl">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600 dark:text-zinc-400">
-            <thead className="text-xs uppercase bg-slate-50/50 dark:bg-zinc-800/50 text-slate-500 dark:text-zinc-300 font-semibold border-b border-slate-200 dark:border-zinc-800">
-              <tr>
-                <th scope="col" className="px-6 py-4">Nama Wilayah</th>
-                <th scope="col" className="px-6 py-4">Tipe</th>
-                <th scope="col" className="px-6 py-4">Ditambahkan Pada</th>
-                <th scope="col" className="px-6 py-4 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-500 mb-3" />
-                    <p className="text-slate-500 dark:text-zinc-400 font-medium">Memuat data wilayah...</p>
-                  </td>
-                </tr>
-              ) : regions.length === 0 && !error ? (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center">
-                    <div className="w-16 h-16 bg-slate-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <AlertCircle className="w-8 h-8 text-slate-400 dark:text-zinc-500" />
-                    </div>
-                    <p className="text-slate-500 dark:text-zinc-400 font-medium">Belum ada data wilayah</p>
-                    <button onClick={() => openModal()} className="text-indigo-600 dark:text-indigo-400 hover:underline mt-2">
-                      Tambah wilayah pertama Anda
-                    </button>
-                  </td>
-                </tr>
-              ) : (
-                regions.map((region) => (
-                  <tr key={region.id} className="border-b border-slate-100 dark:border-zinc-800/50 hover:bg-slate-50/50 dark:hover:bg-zinc-800/30 transition-colors group">
-                    <td className="px-6 py-4">
-                      <span className="font-semibold text-slate-900 dark:text-white">{region.name}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getTypeColor(region.type)}`}>
-                        {translateType(region.type)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      {new Date(region.created_at).toLocaleDateString('id-ID', {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => openModal(region)}
-                          className="p-2 text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-zinc-800 shadow-sm border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-indigo-300 dark:hover:border-indigo-500/50 transition-all"
-                          title="Edit"
-                        >
-                          <Edit2 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(region.id, region.name)}
-                          className="p-2 text-slate-400 hover:text-red-600 dark:hover:text-red-400 bg-white dark:bg-zinc-800 shadow-sm border border-slate-200 dark:border-zinc-700 rounded-lg hover:border-red-300 dark:hover:border-red-500/50 transition-all"
-                          title="Hapus"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+      {/* --- TAB CONTENT: SIPANGAN --- */}
+      {activeTab === 'sipangan' && (
+        <div className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-sm overflow-hidden animate-in fade-in duration-300 slide-in-from-bottom-4">
+          <div className="p-4 border-b border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-bold text-slate-800 dark:text-zinc-200 text-sm flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-teal-500"></span>
+                Data Referensi SiPangan (Read-Only)
+              </h3>
+              <p className="text-xs text-slate-500 mt-1 ml-4">Otomatis diambil dari portal Bapanas. {sipanganRegions.length} wilayah terdeteksi.</p>
+            </div>
+            
+            {/* Search Bar & Sort */}
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={() => setSortOrderSipangan(prev => prev === 'asc' ? 'desc' : 'asc')}
+                className="flex items-center justify-center gap-2 px-3 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                title="Urutkan A-Z / Z-A"
+              >
+                {sortOrderSipangan === 'asc' ? <ArrowDownAZ size={16} /> : <ArrowUpZA size={16} />}
+              </button>
+              <div className="relative w-full sm:w-64">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search size={16} className="text-slate-400" />
+                </div>
+                <input
+                  type="text"
+                  placeholder="Cari nama wilayah..."
+                  value={sipanganSearch}
+                  onChange={(e) => setSipanganSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/50 outline-none transition-all placeholder:text-slate-400"
+                />
+              </div>
+            </div>
+          </div>
+          
+          {isLoadingSipangan ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              <Loader2 className="animate-spin w-8 h-8 mb-2" />
+              <p>Memuat data SiPangan...</p>
+            </div>
+          ) : errorSipangan ? (
+            <div className="h-64 flex flex-col items-center justify-center text-red-500">
+              <AlertCircle className="w-8 h-8 mb-2" />
+              <p>{errorSipangan}</p>
+            </div>
+          ) : filteredSipanganRegions.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-slate-400">
+              <Search className="w-8 h-8 mb-2 opacity-50" />
+              <p>Pencarian "{sipanganSearch}" tidak ditemukan.</p>
+            </div>
+          ) : (
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filteredSipanganRegions.map((r, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-zinc-800 hover:border-teal-200 dark:hover:border-teal-500/30 hover:bg-teal-50/50 dark:hover:bg-teal-500/5 transition-colors group">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center text-slate-500 dark:text-zinc-400 text-xs font-bold">
+                        {idx + 1}
                       </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                      <span className="font-semibold text-slate-700 dark:text-zinc-200 text-sm">{r}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
-      {/* Modal Form */}
+      {/* Form Modal (Hanya untuk BI) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-          <div 
-            className="absolute inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
-            onClick={closeModal}
-          ></div>
-          <div className="relative bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-zinc-800/50">
-              <h3 className="text-xl font-bold text-slate-900 dark:text-white">
-                {formData.id ? 'Edit Wilayah' : 'Tambah Wilayah Baru'}
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-zinc-900 w-full max-w-md rounded-3xl shadow-xl border border-slate-200 dark:border-zinc-800 overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 dark:border-zinc-800">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-zinc-50">
+                {formData.id ? 'Edit Wilayah BI' : 'Tambah Wilayah BI'}
               </h3>
               <button 
                 onClick={closeModal}
-                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 bg-slate-50 dark:bg-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-700 rounded-full transition-colors"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-5">
-              <div className="space-y-2">
-                <label htmlFor="name" className="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                   Nama Wilayah <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  id="name"
+                  required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Misal: Kota Bandar Lampung"
-                  className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-600 transition-all outline-none"
-                  required
+                  className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                 />
               </div>
-
-              <div className="space-y-2">
-                <label htmlFor="type" className="text-sm font-semibold text-slate-700 dark:text-zinc-300">
+              
+              <div>
+                <label className="block text-sm font-bold text-slate-700 dark:text-zinc-300 mb-1.5">
                   Tipe Wilayah <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
                   <select
-                    id="type"
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value as Region['type'] })}
-                    className="w-full px-4 py-3 bg-slate-50 dark:bg-zinc-950/50 border border-slate-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900 dark:text-white transition-all outline-none appearance-none cursor-pointer"
+                    className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all appearance-none cursor-pointer"
                     required
                   >
                     <option value="CITY">Kota</option>
@@ -316,27 +475,21 @@ export default function WilayahPage() {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-4 flex items-center justify-end gap-3">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="flex-1 px-4 py-3 text-slate-600 dark:text-zinc-300 font-medium border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-700/50 rounded-xl transition-colors"
+                  className="px-4 py-2.5 text-sm font-bold text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
                 >
                   Batal
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white font-medium rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center gap-2"
+                  className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-colors shadow-sm disabled:opacity-50"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin" />
-                      Menyimpan...
-                    </>
-                  ) : (
-                    'Simpan'
-                  )}
+                  {isSubmitting && <Loader2 size={16} className="animate-spin" />}
+                  {formData.id ? 'Simpan Perubahan' : 'Tambahkan'}
                 </button>
               </div>
             </form>

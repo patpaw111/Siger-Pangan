@@ -35,22 +35,19 @@ export class PriceService {
     
     this.logger.debug(`Cache MISS: ${cacheKey}`);
 
-    let query = `
-      SELECT DISTINCT ON (commodity_id, region_name) *
-      FROM sipangan_price_records
-      WHERE level_harga = $1
-    `;
-    const params: any[] = [levelHargaId];
+    const qb = this.priceRepo.createQueryBuilder('p')
+      .distinctOn(['p.commodity_id', 'p.region_name'])
+      .where('p.level_harga = :levelHargaId', { levelHargaId });
 
     if (kabupaten) {
-      query += ` AND region_name ILIKE $2`;
-      params.push(`%${kabupaten}%`);
+      qb.andWhere('p.region_name ILIKE :kabupaten', { kabupaten: `%${kabupaten}%` });
     }
 
-    query += ` ORDER BY commodity_id ASC, region_name ASC, price_date DESC`;
+    qb.orderBy('p.commodity_id', 'ASC')
+      .addOrderBy('p.region_name', 'ASC')
+      .addOrderBy('p.price_date', 'DESC');
 
-    const rawData = await this.priceRepo.query(query, params);
-    const records = rawData.map((r: any) => this.priceRepo.create(r as SipanganPriceRecord));
+    const records = await qb.getMany();
 
     // 3. Simpan ke Cache selama 1 jam (3600000 ms)
     await this.cacheManager.set(cacheKey, records, 3600000);
@@ -67,10 +64,12 @@ export class PriceService {
     levelHargaId?: number;
     kabupaten?: string;
     days?: number;
+    startDate?: string;
+    endDate?: string;
   }): Promise<SipanganPriceRecord[]> {
-    const { commodityId, commodityName, levelHargaId = 3, kabupaten, days = 30 } = options;
+    const { commodityId, commodityName, levelHargaId = 3, kabupaten, days = 30, startDate, endDate } = options;
 
-    const cacheKey = `sipangan_history_${commodityId ?? 'x'}_${commodityName ?? 'x'}_${levelHargaId}_${kabupaten ?? 'all'}_${days}`;
+    const cacheKey = `sipangan_history_${commodityId ?? 'x'}_${commodityName ?? 'x'}_${levelHargaId}_${kabupaten ?? 'all'}_${days}_${startDate ?? 'x'}_${endDate ?? 'x'}`;
     const cachedData = await this.cacheManager.get<SipanganPriceRecord[]>(cacheKey);
     
     if (cachedData) {
@@ -91,10 +90,19 @@ export class PriceService {
       qb.andWhere('p.region_name ILIKE :kabupaten', { kabupaten: `%${kabupaten}%` });
     }
 
-    // Filter tanggal N hari ke belakang
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-    qb.andWhere('p.price_date >= :cutoffDate', { cutoffDate });
+    if (startDate && endDate) {
+      qb.andWhere('p.price_date >= :startDate', { startDate });
+      qb.andWhere('p.price_date <= :endDate', { endDate });
+    } else if (startDate) {
+      qb.andWhere('p.price_date >= :startDate', { startDate });
+    } else if (endDate) {
+      qb.andWhere('p.price_date <= :endDate', { endDate });
+    } else {
+      // Filter tanggal N hari ke belakang if no date range provided
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      qb.andWhere('p.price_date >= :cutoffDate', { cutoffDate });
+    }
 
     qb.orderBy('p.price_date', 'ASC');
 

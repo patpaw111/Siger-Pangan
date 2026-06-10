@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SipanganScraperRun } from './entities/sipangan-scraper-run.entity';
 import { SipanganPriceRecord } from './entities/sipangan-price-record.entity';
-import { ApiKeyGuard } from '../auth/api-key.guard';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('api/v1/sipangan-scraper')
 export class SipanganScraperController {
@@ -28,7 +28,7 @@ export class SipanganScraperController {
    * Body opsional: { startDate?: string, endDate?: string, levelHargaIds?: number[] }
    */
   @Post('trigger')
-  @UseGuards(ApiKeyGuard)
+  @UseGuards(JwtAuthGuard)
   @HttpCode(202) // 202 Accepted (Processing in background)
   async trigger(
     @Body() body?: {

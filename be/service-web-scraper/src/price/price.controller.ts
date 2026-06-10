@@ -41,6 +41,8 @@ export class PriceController {
     @Query('marketTypeId', new DefaultValuePipe(1), ParseIntPipe) marketTypeId: number,
     @Query('kabupaten') kabupaten?: string,
     @Query('days', new DefaultValuePipe(30), ParseIntPipe) days: number = 30,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
   ) {
     const data = await this.priceService.getPriceHistory({
       commodityId,
@@ -48,6 +50,8 @@ export class PriceController {
       marketTypeId,
       kabupaten,
       days,
+      startDate,
+      endDate,
     });
     return { success: true, data, total: data.length };
   }

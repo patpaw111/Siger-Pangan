@@ -23,7 +23,7 @@ api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined' && isInternalRequest) {
     const token = localStorage.getItem('access_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+      config.headers.set('Authorization', `Bearer ${token}`);
     }
   }
   return config;
