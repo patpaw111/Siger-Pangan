@@ -35,22 +35,31 @@ export class PriceService {
     
     this.logger.debug(`Cache MISS: ${cacheKey}`);
 
-    let query = `
-      SELECT DISTINCT ON (commodity_id, region_name) *
-      FROM sipangan_price_records
-      WHERE level_harga = $1
-    `;
-    const params: any[] = [levelHargaId];
+    const qb = this.priceRepo.createQueryBuilder('p')
+      .select([
+        'p.id',
+        'p.commodityId',
+        'p.commodityName',
+        'p.levelHarga',
+        'p.levelHargaName',
+        'p.regionName',
+        'p.price',
+        'p.priceDate',
+        'p.source',
+        'p.scrapedAt'
+      ])
+      .distinctOn(['p.commodity_id', 'p.region_name'])
+      .where('p.level_harga = :levelHargaId', { levelHargaId });
 
     if (kabupaten) {
-      query += ` AND region_name ILIKE $2`;
-      params.push(`%${kabupaten}%`);
+      qb.andWhere('p.region_name ILIKE :kabupaten', { kabupaten: `%${kabupaten}%` });
     }
 
-    query += ` ORDER BY commodity_id ASC, region_name ASC, price_date DESC`;
+    qb.orderBy('p.commodity_id', 'ASC')
+      .addOrderBy('p.region_name', 'ASC')
+      .addOrderBy('p.price_date', 'DESC');
 
-    const rawData = await this.priceRepo.query(query, params);
-    const records = rawData.map((r: any) => this.priceRepo.create(r as SipanganPriceRecord));
+    const records = await qb.getMany();
 
     // 3. Simpan ke Cache selama 1 jam (3600000 ms)
     await this.cacheManager.set(cacheKey, records, 3600000);
