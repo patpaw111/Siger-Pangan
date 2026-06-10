@@ -4,6 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/extensions/currency_extension.dart';
 import '../../../../shared/widgets/loading_indicator.dart';
+import '../../../../shared/widgets/searchable_dropdown.dart';
 import '../../../prices/domain/price_record.dart';
 import '../../../prices/presentation/prices_notifier.dart';
 
@@ -607,21 +608,19 @@ class DashboardChart extends ConsumerWidget {
                           final uniquePricesMap = <String, PriceRecord>{};
                           for (final p in prices) uniquePricesMap[p.commodityBiId] = p;
                           final uniquePrices = uniquePricesMap.values.toList();
+                          uniquePrices.sort((a, b) => a.commodityName.compareTo(b.commodityName));
                           if (uniquePrices.isEmpty) return const Text('Data komoditas kosong');
 
                           var selected = sheetRef.watch(selectedDashboardCommodityProvider) ?? uniquePrices.first;
                           if (!uniquePricesMap.containsKey(selected.commodityBiId)) selected = uniquePrices.first;
 
-                          return DropdownButtonFormField<String>(
-                            initialValue: selected.commodityBiId,
-                            decoration: _dropdownDecoration(),
-                            isExpanded: true,
-                            items: uniquePrices.map((p) => DropdownMenuItem(
-                              value: p.commodityBiId,
-                              child: Text(p.commodityName, style: const TextStyle(fontSize: 14)),
-                            )).toList(),
+                          return SearchableDropdown<PriceRecord>(
+                            items: uniquePrices,
+                            value: uniquePricesMap.containsKey(selected.commodityBiId) ? uniquePricesMap[selected.commodityBiId] : null,
+                            itemAsString: (p) => p.commodityName,
+                            hint: 'Pilih Komoditas',
                             onChanged: (val) {
-                              if (val != null) sheetRef.read(selectedDashboardCommodityProvider.notifier).state = uniquePricesMap[val];
+                              if (val != null) sheetRef.read(selectedDashboardCommodityProvider.notifier).state = val;
                             },
                           );
                         },
@@ -696,18 +695,19 @@ class DashboardChart extends ConsumerWidget {
                             final uniquePricesMap = <String, PriceRecord>{};
                             for (final p in prices) uniquePricesMap[p.commodityBiId] = p;
                             final uniquePrices = uniquePricesMap.values.toList();
+                            uniquePrices.sort((a, b) => a.commodityName.compareTo(b.commodityName));
                             var selected = sheetRef.watch(compareToCommodityProvider);
                             if (selected == null || !uniquePricesMap.containsKey(selected.commodityBiId)) {
                               selected = uniquePrices.first;
                               Future.microtask(() => sheetRef.read(compareToCommodityProvider.notifier).state = selected);
                             }
-                            return DropdownButtonFormField<String>(
-                              initialValue: selected?.commodityBiId,
-                              decoration: _dropdownDecoration(),
-                              isExpanded: true,
-                              items: uniquePrices.map((p) => DropdownMenuItem(value: p.commodityBiId, child: Text(p.commodityName, style: const TextStyle(fontSize: 14)))).toList(),
+                            return SearchableDropdown<PriceRecord>(
+                              items: uniquePrices,
+                              value: (selected != null && uniquePricesMap.containsKey(selected.commodityBiId)) ? uniquePricesMap[selected.commodityBiId] : null,
+                              itemAsString: (p) => p.commodityName,
+                              hint: 'Pilih Komoditas Pembanding',
                               onChanged: (val) {
-                                if (val != null) sheetRef.read(compareToCommodityProvider.notifier).state = uniquePricesMap[val];
+                                if (val != null) sheetRef.read(compareToCommodityProvider.notifier).state = uniquePricesMap[val.commodityBiId];
                               },
                             );
                           },
