@@ -553,7 +553,7 @@ export default function PricesPage() {
                         boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)'
                       }}
                       itemStyle={{ color: activeTab === 'BI' ? '#818cf8' : '#2dd4bf' }}
-                      formatter={(value: number) => [formatRupiah(value), 'Harga Rata-rata']}
+                      formatter={(value: any) => [formatRupiah(value), 'Harga Rata-rata']}
                       labelStyle={{ color: '#a1a1aa', marginBottom: '4px' }}
                     />
                     <Area 
