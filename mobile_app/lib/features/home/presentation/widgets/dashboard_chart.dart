@@ -197,7 +197,7 @@ class DashboardChart extends ConsumerWidget {
     
     final marketTypes = dataSource == 'BI' 
         ? {1: 'Tradisional', 2: 'Modern', 3: 'Grosir'}
-        : {1: 'Produsen', 2: 'Grosir', 3: 'Eceran'};
+        : {1: 'Produsen', 3: 'Eceran'};
 
     final baseLabel = '${commodity.commodityName} • ${region ?? 'Semua Wilayah'} • ${marketTypes[baseMarket]}';
     final compareLabel = isCompareEnabled
@@ -567,7 +567,7 @@ class DashboardChart extends ConsumerWidget {
 
             final marketTypesFull = dataSource == 'BI'
                 ? {1: 'Pasar Tradisional', 2: 'Pasar Modern', 3: 'Pasar Grosir'}
-                : {1: 'Harga Produsen', 2: 'Harga Grosir', 3: 'Harga Eceran'};
+                : {1: 'Harga Produsen', 3: 'Harga Eceran'};
 
             return SafeArea(
               child: Padding(
