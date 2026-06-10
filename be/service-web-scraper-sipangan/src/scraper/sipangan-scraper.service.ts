@@ -214,6 +214,12 @@ export class SipanganScraperService implements OnModuleInit {
 
     for (const kota of kotaDataList) {
       const regionName = kota.KOTA;
+      
+      // Abaikan kabupaten/kota di luar Lampung yang kadang nyasar dari SiPangan pusat
+      if (regionName.toLowerCase().includes('cilacap') || regionName.toLowerCase().includes('wonogiri')) {
+        continue;
+      }
+
       const values = kota.DATA?.Value ?? [];
 
       for (const val of values) {
