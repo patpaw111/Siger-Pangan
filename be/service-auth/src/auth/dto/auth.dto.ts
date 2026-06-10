@@ -2,6 +2,10 @@ import { IsEmail, IsEnum, IsNotEmpty, IsOptional, MinLength, IsString } from 'cl
 import { Role } from '../../users/entities/user.entity';
 
 export class RegisterDto {
+  @IsOptional()
+  @IsString({ message: 'Nama harus berupa teks' })
+  name?: string;
+
   @IsEmail({}, { message: 'Format email tidak valid' })
   @IsNotEmpty({ message: 'Email tidak boleh kosong' })
   email: string;

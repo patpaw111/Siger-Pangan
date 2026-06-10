@@ -31,6 +31,7 @@ export class AuthService {
     const password_hash = await bcrypt.hash(registerDto.password, salt);
 
     const user = await this.usersService.create({
+      name: registerDto.name,
       email: registerDto.email,
       password_hash,
       role: Role.USER, // Selalu paksa menjadi USER untuk registrasi publik
