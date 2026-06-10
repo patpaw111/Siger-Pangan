@@ -20,12 +20,12 @@ class PriceRecord {
   });
 
   factory PriceRecord.fromJson(Map<String, dynamic> json) => PriceRecord(
-        commodityBiId: json['commodityBiId']?.toString() ?? '',
+        commodityBiId: (json['commodityBiId'] ?? json['commodityId'])?.toString() ?? '',
         commodityName: json['commodityName']?.toString() ?? '',
         categoryName: json['categoryName']?.toString() ?? '',
         denomination: json['denomination']?.toString() ?? 'kg',
         regionName: json['regionName']?.toString() ?? '',
-        marketTypeId: (json['marketTypeId'] as num?)?.toInt() ?? 1,
+        marketTypeId: (json['marketTypeId'] ?? json['levelHarga'] as num?)?.toInt() ?? 1,
         price: (json['price'] as num?)?.toInt(),
         priceDate: json['priceDate'] != null
             ? DateTime.tryParse(json['priceDate'].toString()) ?? DateTime.now()

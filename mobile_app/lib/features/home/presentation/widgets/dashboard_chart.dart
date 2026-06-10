@@ -18,6 +18,7 @@ class DashboardChart extends ConsumerWidget {
     final region = ref.watch(selectedRegionDashboardProvider);
     final baseMarket = ref.watch(selectedMarketTypeProvider);
     final isCompareEnabled = ref.watch(isCompareEnabledProvider);
+    final dataSource = ref.watch(selectedDataSourceProvider);
 
     final params = PriceHistoryParams(
       commodityId: commodity.commodityBiId,
@@ -25,6 +26,7 @@ class DashboardChart extends ConsumerWidget {
       marketTypeId: baseMarket,
       days: days,
       kabupaten: region,
+      dataSource: dataSource,
     );
     final historyAsync = ref.watch(priceHistoryProvider(params));
     
@@ -40,6 +42,7 @@ class DashboardChart extends ConsumerWidget {
         marketTypeId: compMarket ?? baseMarket,
         days: days,
         kabupaten: compRegion ?? region,
+        dataSource: dataSource,
       );
       compareAsync = ref.watch(priceHistoryProvider(compParams));
     }
@@ -186,10 +189,14 @@ class DashboardChart extends ConsumerWidget {
     final baseMarket = ref.watch(selectedMarketTypeProvider);
     final region = ref.watch(selectedRegionDashboardProvider);
     final isCompareEnabled = ref.watch(isCompareEnabledProvider);
+    final dataSource = ref.watch(selectedDataSourceProvider);
     final compComm = ref.watch(compareToCommodityProvider);
     final compRegion = ref.watch(compareToRegionProvider);
     final compMarket = ref.watch(compareToMarketProvider);
-    final marketTypes = {1: 'Tradisional', 2: 'Modern', 3: 'Grosir'};
+    
+    final marketTypes = dataSource == 'BI' 
+        ? {1: 'Tradisional', 2: 'Modern', 3: 'Grosir'}
+        : {1: 'Produsen', 2: 'Grosir', 3: 'Eceran'};
 
     final baseLabel = '${commodity.commodityName} • ${region ?? 'Semua Wilayah'} • ${marketTypes[baseMarket]}';
     final compareLabel = isCompareEnabled
@@ -555,8 +562,11 @@ class DashboardChart extends ConsumerWidget {
             final regionsAsync = sheetRef.watch(regionsProvider);
             final isCompareEnabled = sheetRef.watch(isCompareEnabledProvider);
             final marketType = sheetRef.watch(selectedMarketTypeProvider);
+            final dataSource = sheetRef.watch(selectedDataSourceProvider);
 
-            final marketTypes = {1: 'Pasar Tradisional', 2: 'Pasar Modern', 3: 'Pasar Grosir'};
+            final marketTypesFull = dataSource == 'BI'
+                ? {1: 'Pasar Tradisional', 2: 'Pasar Modern', 3: 'Pasar Grosir'}
+                : {1: 'Harga Produsen', 2: 'Harga Grosir', 3: 'Harga Eceran'};
 
             return SafeArea(
               child: Padding(
@@ -570,6 +580,23 @@ class DashboardChart extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text('Filter Utama', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      const SizedBox(height: 16),
+                      
+                      // Filter Sumber Data
+                      const Text('Sumber Data', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<String>(
+                        initialValue: dataSource,
+                        decoration: _dropdownDecoration(),
+                        isExpanded: true,
+                        items: const [
+                          DropdownMenuItem(value: 'BI', child: Text('Bank Indonesia (BI)', style: TextStyle(fontSize: 14))),
+                          DropdownMenuItem(value: 'SiPangan', child: Text('Badan Pangan Nasional (SiPangan)', style: TextStyle(fontSize: 14))),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) sheetRef.read(selectedDataSourceProvider.notifier).state = val;
+                        },
+                      ),
                       const SizedBox(height: 16),
                       
                       // Filter Komoditas Utama
@@ -628,14 +655,14 @@ class DashboardChart extends ConsumerWidget {
                       ),
 
                       const SizedBox(height: 16),
-                      // Filter Jenis Pasar Utama
-                      const Text('Jenis Pasar', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                      // Filter Jenis Pasar / Level Harga Utama
+                      Text(dataSource == 'BI' ? 'Jenis Pasar' : 'Level Harga', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         initialValue: marketType,
                         decoration: _dropdownDecoration(),
                         isExpanded: true,
-                        items: marketTypes.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 14)))).toList(),
+                        items: marketTypesFull.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 14)))).toList(),
                         onChanged: (val) {
                           if (val != null) sheetRef.read(selectedMarketTypeProvider.notifier).state = val;
                         },
@@ -712,13 +739,13 @@ class DashboardChart extends ConsumerWidget {
                         ),
 
                         const SizedBox(height: 16),
-                        const Text('Jenis Pasar Pembanding', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+                        Text(dataSource == 'BI' ? 'Jenis Pasar Pembanding' : 'Level Harga Pembanding', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
                         const SizedBox(height: 8),
                         DropdownButtonFormField<int>(
-                          initialValue: sheetRef.watch(compareToMarketProvider) ?? 2,
+                          initialValue: sheetRef.watch(compareToMarketProvider) ?? (dataSource == 'BI' ? 2 : 1),
                           decoration: _dropdownDecoration(),
                           isExpanded: true,
-                          items: marketTypes.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 14)))).toList(),
+                          items: marketTypesFull.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, style: const TextStyle(fontSize: 14)))).toList(),
                           onChanged: (val) {
                             if (val != null) sheetRef.read(compareToMarketProvider.notifier).state = val;
                           },

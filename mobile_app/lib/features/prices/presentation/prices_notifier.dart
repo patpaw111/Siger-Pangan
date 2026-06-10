@@ -5,10 +5,15 @@ import '../domain/price_record.dart';
 // Providers
 final priceRepositoryProvider = Provider((_) => PriceRepository());
 
+// Data Source State
+final selectedDataSourceProvider = StateProvider<String>((ref) => 'BI');
+
 // Latest prices
 final latestPricesProvider = FutureProvider.family<List<PriceRecord>, int>(
-  (ref, marketTypeId) =>
-      ref.read(priceRepositoryProvider).getLatestPrices(marketTypeId: marketTypeId),
+  (ref, marketTypeId) {
+    final ds = ref.watch(selectedDataSourceProvider);
+    return ref.read(priceRepositoryProvider).getLatestPrices(marketTypeId: marketTypeId, dataSource: ds);
+  }
 );
 
 // Dashboard Mode State
@@ -29,6 +34,7 @@ class PriceHistoryParams {
   final int marketTypeId;
   final int days;
   final String? kabupaten;
+  final String dataSource;
 
   const PriceHistoryParams({
     this.commodityId,
@@ -36,6 +42,7 @@ class PriceHistoryParams {
     this.marketTypeId = 1,
     this.days = 30,
     this.kabupaten,
+    this.dataSource = 'BI',
   });
 
   @override
@@ -47,7 +54,8 @@ class PriceHistoryParams {
           commodityName == other.commodityName &&
           marketTypeId == other.marketTypeId &&
           days == other.days &&
-          kabupaten == other.kabupaten;
+          kabupaten == other.kabupaten &&
+          dataSource == other.dataSource;
 
   @override
   int get hashCode =>
@@ -55,7 +63,8 @@ class PriceHistoryParams {
       commodityName.hashCode ^
       marketTypeId.hashCode ^
       days.hashCode ^
-      kabupaten.hashCode;
+      kabupaten.hashCode ^
+      dataSource.hashCode;
 }
 
 final priceHistoryProvider =
@@ -66,12 +75,16 @@ final priceHistoryProvider =
         marketTypeId: params.marketTypeId,
         days: params.days,
         kabupaten: params.kabupaten,
+        dataSource: params.dataSource,
       ),
 );
 
 // Regions
 final regionsProvider = FutureProvider<List<String>>(
-  (ref) => ref.read(priceRepositoryProvider).getRegions(),
+  (ref) {
+    final ds = ref.watch(selectedDataSourceProvider);
+    return ref.read(priceRepositoryProvider).getRegions(dataSource: ds);
+  }
 );
 
 // Selected market type (persisted via StateProvider)

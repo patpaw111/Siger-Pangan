@@ -44,7 +44,6 @@ class AuthRepository {
         'name': name,
         'email': email,
         'password': password,
-        'role': 'USER', // Default role untuk mobile
       });
 
       // API mengembalikan access_token dan data user seperti halnya login
