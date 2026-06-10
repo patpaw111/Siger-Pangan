@@ -558,10 +558,10 @@ class DashboardChart extends ConsumerWidget {
       builder: (ctx) {
         return Consumer(
           builder: (context, sheetRef, child) {
-            final rawPricesAsync = sheetRef.watch(latestPricesProvider(1));
+            final marketType = sheetRef.watch(selectedMarketTypeProvider);
+            final rawPricesAsync = sheetRef.watch(latestPricesProvider(marketType));
             final regionsAsync = sheetRef.watch(regionsProvider);
             final isCompareEnabled = sheetRef.watch(isCompareEnabledProvider);
-            final marketType = sheetRef.watch(selectedMarketTypeProvider);
             final dataSource = sheetRef.watch(selectedDataSourceProvider);
 
             final marketTypesFull = dataSource == 'BI'

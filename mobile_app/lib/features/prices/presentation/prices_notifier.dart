@@ -6,7 +6,7 @@ import '../domain/price_record.dart';
 final priceRepositoryProvider = Provider((_) => PriceRepository());
 
 // Data Source State
-final selectedDataSourceProvider = StateProvider<String>((ref) => 'BI');
+final selectedDataSourceProvider = StateProvider<String>((ref) => 'SiPangan');
 
 // Latest prices
 final latestPricesProvider = FutureProvider.family<List<PriceRecord>, int>(
@@ -39,10 +39,10 @@ class PriceHistoryParams {
   const PriceHistoryParams({
     this.commodityId,
     this.commodityName,
-    this.marketTypeId = 1,
+    this.marketTypeId = 3,
     this.days = 30,
     this.kabupaten,
-    this.dataSource = 'BI',
+    this.dataSource = 'SiPangan',
   });
 
   @override
@@ -88,4 +88,4 @@ final regionsProvider = FutureProvider<List<String>>(
 );
 
 // Selected market type (persisted via StateProvider)
-final selectedMarketTypeProvider = StateProvider<int>((ref) => 1);
+final selectedMarketTypeProvider = StateProvider<int>((ref) => 3);
