@@ -27,12 +27,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  void _handleRegister() {
+  Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-    // TODO: Implement register logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Fitur Sign Up belum tersedia.')),
+    
+    final success = await ref.read(authProvider.notifier).register(
+      _nameCtrl.text.trim(),
+      _emailCtrl.text.trim(),
+      _passwordCtrl.text,
     );
+
+    if (success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pendaftaran berhasil!')),
+      );
+      context.go(AppRoutes.home);
+    }
   }
 
   @override
@@ -128,13 +137,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           ),
                           const SizedBox(height: 40),
                           ElevatedButton(
-                            onPressed: _handleRegister,
+                            onPressed: authState.isLoading ? null : _handleRegister,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isDark ? const Color(0xFF334155) : Colors.black,
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                             ),
-                            child: const Text('Daftar'),
+                            child: authState.isLoading
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(strokeWidth: 2.5, color: Colors.white),
+                                  )
+                                : const Text('Daftar'),
                           ),
                           if (authState.error != null) ...[
                             const SizedBox(height: 16),
