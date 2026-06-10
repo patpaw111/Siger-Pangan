@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+Dockerfile
+.dockerignore
+dist
+.git
+.gitignore
+web-cms/node_modules
+web-cms/.next
+be/*/node_modules
+be/*/dist
