@@ -51,7 +51,7 @@ class DashboardChart extends ConsumerWidget {
     return historyAsync.when(
       data: (data) {
         if (data.isEmpty) {
-          return _buildEmptyState(context, ref);
+          return _buildEmptyState(context, ref, commodity);
         }
         
         if (compareAsync != null) {
@@ -78,9 +78,47 @@ class DashboardChart extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, WidgetRef ref) {
+  Widget _buildEmptyState(BuildContext context, WidgetRef ref, PriceRecord commodity) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Tampilkan Header (Nama Komoditas & Harga Saat Ini) meskipun histori kosong
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                commodity.commodityName,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w500,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    (commodity.price ?? 0).toRupiah(),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '/ ${commodity.denomination}',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 16),
         _buildTimeframeSelector(context, ref, ref.watch(selectedDaysDashboardProvider)),
         Container(
@@ -141,7 +179,7 @@ class DashboardChart extends ConsumerWidget {
       }
     }
 
-    if (spots.isEmpty) return _buildEmptyState(context, ref);
+    if (spots.isEmpty) return _buildEmptyState(context, ref, commodity);
 
     var minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
     var maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);

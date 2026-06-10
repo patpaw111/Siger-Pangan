@@ -119,15 +119,27 @@ export class ChatbotService implements OnModuleInit {
       // 3. Filter berdasarkan komoditas (dari NLP)
       const keyword = nlpResponse.commodity.toLowerCase();
       
+      let sipanganKeyword = keyword;
+      if (keyword.includes('beras kualitas medium')) sipanganKeyword = 'beras medium';
+      else if (keyword.includes('beras kualitas super')) sipanganKeyword = 'beras premium';
+      else if (keyword.includes('minyak goreng')) sipanganKeyword = 'minyak';
+      else if (keyword.includes('gula pasir')) sipanganKeyword = 'gula konsumsi';
+      else if (keyword.includes('tepung terigu')) sipanganKeyword = 'tepung terigu';
+      else if (keyword.includes('daging sapi')) sipanganKeyword = 'daging sapi';
+      
       const filteredSipangan = sipanganData.filter((item: any) => 
-        item.commodity_name && item.commodity_name.toLowerCase().includes(keyword)
+        item.commodityName && item.commodityName.toLowerCase().includes(sipanganKeyword)
       ).map((item: any) => ({
         id: item.id,
-        commodityName: item.commodity_name,
+        commodityName: item.commodityName,
         price: Number(item.price),
-        regionName: item.region_name,
+        regionName: item.regionName,
         source: 'SiPangan (Pemda)'
       }));
+
+      console.log('Sipangan Data Total:', sipanganData.length);
+      console.log('Sipangan Keyword:', sipanganKeyword);
+      console.log('Filtered Sipangan Total:', filteredSipangan.length);
 
       const filteredBi = biData.filter((item: any) => 
         item.commodityName && item.commodityName.toLowerCase().includes(keyword)

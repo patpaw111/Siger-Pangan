@@ -59,7 +59,9 @@ class _DashboardTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rawPricesAsync = ref.watch(latestPricesProvider(1));
+    // Ambil default market type dari state (seharusnya 3 untuk Eceran)
+    final defaultMarketType = ref.watch(selectedMarketTypeProvider);
+    final rawPricesAsync = ref.watch(latestPricesProvider(defaultMarketType));
 
     return SafeArea(
       child: Column(
@@ -108,7 +110,13 @@ class _DashboardTab extends ConsumerWidget {
               data: (prices) {
                 if (prices.isEmpty) return const Center(child: Text('Data tidak tersedia'));
                 
-                final selectedCommodity = ref.watch(selectedDashboardCommodityProvider) ?? prices.first;
+                // Cari Bawang Merah sebagai default jika belum ada yang dipilih
+                final fallbackCommodity = prices.firstWhere(
+                  (p) => p.commodityName.toLowerCase().contains('bawang merah'),
+                  orElse: () => prices.first,
+                );
+                
+                final selectedCommodity = ref.watch(selectedDashboardCommodityProvider) ?? fallbackCommodity;
                 return SingleChildScrollView(
                   child: Column(
                     children: [

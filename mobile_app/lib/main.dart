@@ -36,11 +36,12 @@ Future<void> main() async {
   // Load preferences untuk state awal
   final prefs = await SharedPreferences.getInstance();
   final defaultRegion = prefs.getString('pref_default_region');
-  final defaultMarketString = prefs.getString('pref_default_market') ?? 'Tradisional';
+  final defaultMarketString = prefs.getString('pref_default_market') ?? 'Eceran';
   
-  int defaultMarket = 1;
-  if (defaultMarketString == 'Modern') defaultMarket = 2;
-  if (defaultMarketString == 'Grosir') defaultMarket = 3;
+  int defaultMarket = 3; // Default ke 3 (Eceran untuk SiPangan, Pedagang Besar untuk BI)
+  if (defaultMarketString == 'Tradisional' || defaultMarketString == 'Produsen') defaultMarket = 1;
+  if (defaultMarketString == 'Modern' || defaultMarketString == 'Grosir') defaultMarket = 2;
+  if (defaultMarketString == 'Eceran') defaultMarket = 3;
 
   runApp(
     // ProviderScope wajib di root untuk Riverpod

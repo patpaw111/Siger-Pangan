@@ -9,3 +9,4 @@ web-cms/node_modules
 web-cms/.next
 be/*/node_modules
 be/*/dist
+mobile_app
