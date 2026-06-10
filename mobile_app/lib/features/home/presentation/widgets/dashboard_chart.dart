@@ -611,8 +611,11 @@ class DashboardChart extends ConsumerWidget {
                           uniquePrices.sort((a, b) => a.commodityName.compareTo(b.commodityName));
                           if (uniquePrices.isEmpty) return const Text('Data komoditas kosong');
 
-                          var selected = sheetRef.watch(selectedDashboardCommodityProvider) ?? uniquePrices.first;
-                          if (!uniquePricesMap.containsKey(selected.commodityBiId)) selected = uniquePrices.first;
+                          var selected = sheetRef.watch(selectedDashboardCommodityProvider);
+                          if (selected == null || !uniquePricesMap.containsKey(selected.commodityBiId)) {
+                            selected = uniquePrices.first;
+                            Future.microtask(() => sheetRef.read(selectedDashboardCommodityProvider.notifier).state = selected);
+                          }
 
                           return SearchableDropdown<PriceRecord>(
                             items: uniquePrices,
