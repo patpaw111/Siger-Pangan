@@ -16,8 +16,11 @@ async function bootstrap(): Promise<void> {
     'http://localhost:8080',
     'http://127.0.0.1:5500',
   ];
+  const envOrigins = process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()) : [];
+  const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])].filter(Boolean);
+
   app.enableCors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') ?? defaultOrigins,
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
     credentials: true,
