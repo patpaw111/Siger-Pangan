@@ -430,6 +430,7 @@ export default function PricesPage() {
                 value={selectedDays}
                 onChange={(val) => setSelectedDays(parseInt(val.toString()))}
                 options={[
+                  { label: "1 Hari Terakhir", value: 1 },
                   { label: "7 Hari Terakhir", value: 7 },
                   { label: "14 Hari Terakhir", value: 14 },
                   { label: "1 Bulan Terakhir", value: 30 },
