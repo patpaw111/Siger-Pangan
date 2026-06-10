@@ -37,8 +37,7 @@ export class AuthService {
       role: Role.USER, // Selalu paksa menjadi USER untuk registrasi publik
     });
 
-    const { password_hash: _, ...result } = user;
-    return result;
+    return this.generateTokenForUser(user);
   }
 
   async adminCreateUser(adminCreateUserDto: AdminCreateUserDto) {
