@@ -8,6 +8,8 @@ async function bootstrap(): Promise<void> {
 
   // CORS — izinkan semua port dev lokal yang umum dipakai FE
   const defaultOrigins = [
+    'https://www.sigerpangan.my.id',
+    'https://sigerpangan.my.id',
     'http://localhost:3000',
     'http://localhost:3001',
     'http://localhost:5173',

@@ -20,6 +20,8 @@ async function bootstrap() {
   // CORS — izinkan semua port dev lokal yang umum dipakai FE
   // Override via env: ALLOWED_ORIGINS=http://domain1.com,http://domain2.com
   const defaultOrigins = [
+    'https://www.sigerpangan.my.id',
+    'https://sigerpangan.my.id',
     'http://localhost:3000',  // Next.js (default)
     'http://localhost:3001',  // Next.js (alt) / CRA
     'http://localhost:5173',  // Vite
