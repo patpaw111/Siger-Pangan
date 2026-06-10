@@ -15,6 +15,8 @@ import {
   ResponsiveContainer,
   Legend
 } from 'recharts';
+import { cn } from '@/lib/utils';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 import { Filter, Loader2, AlertCircle, ChevronDown, Check, X, Download, Info } from 'lucide-react';
 import api from '@/lib/api';
 import * as XLSX from 'xlsx';
@@ -23,11 +25,16 @@ type ChartType = 'line' | 'bar' | 'area';
 
 const CHART_COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
+const SIPANGAN_LEVELS = [{ id: 3, name: 'Eceran' }, { id: 1, name: 'Produsen' }];
+
 export interface PriceChartProps {
   dataSource?: 'bi' | 'sipangan';
+  globalDays?: number;
+  globalStartDate?: string;
+  globalEndDate?: string;
 }
 
-export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
+export default function PriceChart({ dataSource = 'bi', globalDays, globalStartDate, globalEndDate }: PriceChartProps) {
   const [biData, setBiData] = useState<any[]>([]);
   const [sipanganData, setSipanganData] = useState<any[]>([]);
   
@@ -45,6 +52,13 @@ export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
   const [selectedSipanganRegions, setSelectedSipanganRegions] = useState<string[]>([]);
   const [selectedBiLevels, setSelectedBiLevels] = useState<number[]>([1]);
   const [selectedSipanganLevels, setSelectedSipanganLevels] = useState<number[]>([3]);
+  const [localDays, setLocalDays] = useState<number>(30); // 0 indicates custom date range
+  const [localStartDate, setLocalStartDate] = useState<string>('');
+  const [localEndDate, setLocalEndDate] = useState<string>('');
+
+  const days = globalDays !== undefined ? globalDays : localDays;
+  const startDate = globalStartDate !== undefined ? globalStartDate : localStartDate;
+  const endDate = globalEndDate !== undefined ? globalEndDate : localEndDate;
   
   // Derived state based on current data source
   const commodities = dataSource === 'bi' ? biCommodities : sipanganCommodities;
@@ -55,9 +69,8 @@ export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
   
   const data = dataSource === 'bi' ? biData : sipanganData;
   const setData = dataSource === 'bi' ? setBiData : setSipanganData;
-  const levels = [{ id: 3, name: 'Eceran' }, { id: 1, name: 'Produsen' }];
+  const levels = SIPANGAN_LEVELS;
   const [chartType, setChartType] = useState<ChartType>('line');
-  const [days, setDays] = useState<number>(30);
   
   // UI State
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -195,7 +208,18 @@ export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
         selectedCommodities.forEach(commId => {
           const commName = commodities.find(c => c.id === commId)?.name || commId;
           levelsToUse.forEach(levelId => {
-            const params: any = { days };
+            const params: any = {};
+            if (days === 0) {
+              if (startDate && endDate) {
+                params.startDate = startDate;
+                params.endDate = endDate;
+              } else {
+                params.days = 30; // fallback
+              }
+            } else {
+              params.days = days;
+            }
+
             if (dataSource === 'sipangan') {
               params.commodityName = commName;
               params.levelHargaId = levelId;
@@ -271,7 +295,7 @@ export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
     };
 
     fetchChartData();
-  }, [selectedCommodities, days, commodities, selectedRegions, dataSource, selectedLevels]);
+  }, [dataSource, selectedCommodities, selectedRegions, selectedLevels, days, commodities, levels, startDate, endDate]);
 
   const toggleCommodity = (id: string) => {
     if (dataSource === 'bi') {
@@ -685,19 +709,43 @@ export default function PriceChart({ dataSource = 'bi' }: PriceChartProps) {
             )}
           </div>
 
-          {/* Time Range */}
-          <select 
-            value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm rounded-xl focus:ring-indigo-500 focus:border-indigo-500 block p-2.5 outline-none transition-colors"
-          >
-            <option value={7}>7 Hari Terakhir</option>
-            <option value={14}>14 Hari Terakhir</option>
-            <option value={30}>30 Hari Terakhir</option>
-            <option value={90}>3 Bulan Terakhir</option>
-            <option value={180}>6 Bulan Terakhir</option>
-            <option value={365}>1 Tahun Terakhir</option>
-          </select>
+          {/* Time Range (Only show if not controlled by parent) */}
+          {globalDays === undefined && (
+            <div className="flex gap-2">
+              <CustomSelect
+                value={days}
+                onChange={(val) => setLocalDays(Number(val))}
+                options={[
+                  { label: "7 Hari Terakhir", value: 7 },
+                  { label: "14 Hari Terakhir", value: 14 },
+                  { label: "30 Hari Terakhir", value: 30 },
+                  { label: "3 Bulan Terakhir", value: 90 },
+                  { label: "6 Bulan Terakhir", value: 180 },
+                  { label: "1 Tahun Terakhir", value: 365 },
+                  { label: "Kustom...", value: 0 }
+                ]}
+                searchable={false}
+                className="w-40 !py-2.5 bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 rounded-xl"
+              />
+              {days === 0 && (
+                <div className="flex items-center gap-2 animate-in slide-in-from-right-2 fade-in duration-300">
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setLocalStartDate(e.target.value)}
+                    className="w-32 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm font-medium rounded-xl px-2 py-2 outline-none transition-colors focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                  <span className="text-slate-400 font-medium text-sm">-</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setLocalEndDate(e.target.value)}
+                    className="w-32 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 text-sm font-medium rounded-xl px-2 py-2 outline-none transition-colors focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Export Dropdown */}
           <div className="relative" ref={exportDropdownRef}>

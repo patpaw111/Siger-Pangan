@@ -15,6 +15,7 @@ import {
 import { cn } from '@/lib/utils';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import { CustomReport } from '@/components/ui/CustomReport';
+import { CustomSelect } from '@/components/ui/CustomSelect';
 
 interface Commodity {
   id: string;
@@ -43,10 +44,20 @@ export default function PricesPage() {
   const [commodities, setCommodities] = useState<Commodity[]>([]);
   const [regions, setRegions] = useState<string[]>([]);
   
-  const [selectedCommodity, setSelectedCommodity] = useState<string>(''); // empty means "All"
+  const [selectedBiCommodity, setSelectedBiCommodity] = useState<string>('');
+  const [selectedSipanganCommodity, setSelectedSipanganCommodity] = useState<string>('');
+  const selectedCommodity = activeTab === 'BI' ? selectedBiCommodity : selectedSipanganCommodity;
+  const setSelectedCommodity = activeTab === 'BI' ? setSelectedBiCommodity : setSelectedSipanganCommodity;
+  
   const [selectedRegion, setSelectedRegion] = useState<string>('');
-  const [selectedDays, setSelectedDays] = useState<number>(30);
-  const [marketTypeId, setMarketTypeId] = useState<number>(1); // 1 for BI (Tradisional), 3 for SiPangan (Eceran)
+  const [selectedDays, setSelectedDays] = useState<number>(30); // 0 indicates custom date range
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  
+  const [marketTypeIdBi, setMarketTypeIdBi] = useState<number>(1);
+  const [marketTypeIdSipangan, setMarketTypeIdSipangan] = useState<number>(3);
+  const marketTypeId = activeTab === 'BI' ? marketTypeIdBi : marketTypeIdSipangan;
+  const setMarketTypeId = activeTab === 'BI' ? setMarketTypeIdBi : setMarketTypeIdSipangan;
 
   // Data States
   const [pricesData, setPricesData] = useState<PriceRecord[]>([]);
@@ -86,10 +97,8 @@ export default function PricesPage() {
           setRegions(regRes.data.data);
         }
 
-        // Reset selections when switching tabs since IDs might differ
-        setSelectedCommodity('');
-        // setSelectedRegion(''); // Keep region if possible, but names might differ slightly. Let's keep it for now.
-        setMarketTypeId(activeTab === 'BI' ? 1 : 3);
+        // We no longer reset selections when switching tabs to preserve user experience
+        // The derived states (selectedCommodity, marketTypeId) automatically switch based on activeTab
         
       } catch (err: any) {
         console.error('Failed to fetch options', err);
@@ -103,7 +112,7 @@ export default function PricesPage() {
   // Fetch Data based on filters
   useEffect(() => {
     fetchData();
-  }, [activeTab, selectedCommodity, selectedRegion, selectedDays, marketTypeId]);
+  }, [activeTab, selectedCommodity, selectedRegion, selectedDays, marketTypeId, startDate, endDate]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -114,9 +123,20 @@ export default function PricesPage() {
       
       let url = '';
       let params: Record<string, any> = {
-        [typeParam]: marketTypeId,
-        days: selectedDays
+        [typeParam]: marketTypeId
       };
+
+      if (selectedDays === 0) {
+        if (startDate && endDate) {
+          params.startDate = startDate;
+          params.endDate = endDate;
+        } else {
+          // Default to 30 days if custom range is selected but not filled yet
+          params.days = 30;
+        }
+      } else {
+        params.days = selectedDays;
+      }
 
       if (selectedRegion) {
         params.kabupaten = selectedRegion;
@@ -129,7 +149,6 @@ export default function PricesPage() {
           params.commodityId = selectedCommodity;
         }
         url = `${baseUrl}/history`;
-        params.days = selectedDays;
       } else {
         // Fetch Latest
         url = `${baseUrl}/latest`;
@@ -202,7 +221,7 @@ export default function PricesPage() {
       // Calculate average price for that date across all regions (if no region selected)
       const avgPrice = Math.round(prices.reduce((sum, val) => sum + val, 0) / prices.length);
       return {
-        date: new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
+        date: new Date(date).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }),
         fullDate: date,
         harga: avgPrice
       };
@@ -341,7 +360,7 @@ export default function PricesPage() {
 
       <div className={cn(activeTab !== 'CUSTOM' ? "block" : "hidden")}>
         {/* Advanced Filters */}
-      <div className="bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm relative z-10">
+      <div className="bg-white/60 dark:bg-zinc-900/40 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-3xl p-6 shadow-sm relative z-40">
         <div className="flex items-center gap-3 mb-6">
           <div className={cn("p-2 rounded-xl", activeTab === 'BI' ? "bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400" : "bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400")}>
             <Filter size={20} />
@@ -354,37 +373,31 @@ export default function PricesPage() {
           {/* Commodity Select */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider pl-1">Komoditas</label>
-            <div className="relative group">
-              <select 
-                value={selectedCommodity}
-                onChange={(e) => setSelectedCommodity(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-sm rounded-2xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium cursor-pointer"
-              >
-                <option value="">-- Semua Komoditas (Harga Hari Ini) --</option>
-                {commodities.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-slate-600 transition-colors" />
-            </div>
+            <CustomSelect
+              value={selectedCommodity || ""}
+              onChange={(val) => setSelectedCommodity(val.toString())}
+              options={[
+                { label: "-- Semua Komoditas (Harga Hari Ini) --", value: "" },
+                ...commodities.map((c) => ({ label: c.name, value: c.id.toString() }))
+              ]}
+              searchable={true}
+              placeholder="Pilih Komoditas"
+            />
           </div>
 
           {/* Region Select */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider pl-1">Wilayah</label>
-            <div className="relative group">
-              <select 
-                value={selectedRegion}
-                onChange={(e) => setSelectedRegion(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-sm rounded-2xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium cursor-pointer"
-              >
-                <option value="">-- Semua Kabupaten/Kota --</option>
-                {regions.map((r, i) => (
-                  <option key={i} value={r}>{r}</option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-slate-600 transition-colors" />
-            </div>
+            <CustomSelect
+              value={selectedRegion || ""}
+              onChange={(val) => setSelectedRegion(val.toString())}
+              options={[
+                { label: "-- Semua Kabupaten/Kota --", value: "" },
+                ...regions.map((r) => ({ label: r, value: r }))
+              ]}
+              searchable={true}
+              placeholder="Pilih Wilayah"
+            />
           </div>
 
           {/* Market Type Select */}
@@ -392,48 +405,62 @@ export default function PricesPage() {
             <label className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider pl-1">
               {activeTab === 'BI' ? 'Tipe Pasar' : 'Level Harga'}
             </label>
-            <div className="relative group">
-              <select 
-                value={marketTypeId}
-                onChange={(e) => setMarketTypeId(parseInt(e.target.value))}
-                className="w-full bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-sm rounded-2xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium cursor-pointer"
-              >
-                {activeTab === 'BI' ? (
-                  <>
-                    <option value={1}>Pasar Tradisional</option>
-                    <option value={2}>Pasar Modern</option>
-                    <option value={3}>Pedagang Besar</option>
-                  </>
-                ) : (
-                  <>
-                    <option value={1}>Tingkat Produsen</option>
-                    <option value={3}>Tingkat Eceran</option>
-                  </>
-                )}
-              </select>
-              <ChevronDown size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none group-hover:text-slate-600 transition-colors" />
-            </div>
+            <CustomSelect
+              value={marketTypeId}
+              onChange={(val) => setMarketTypeId(parseInt(val.toString()))}
+              options={
+                activeTab === 'BI' ? [
+                  { label: "Pasar Tradisional", value: 1 },
+                  { label: "Pasar Modern", value: 2 },
+                  { label: "Pedagang Besar", value: 3 }
+                ] : [
+                  { label: "Tingkat Produsen", value: 1 },
+                  { label: "Tingkat Eceran", value: 3 }
+                ]
+              }
+              searchable={false}
+            />
           </div>
 
           {/* Date Range (Only active if Commodity is selected) */}
           <div className="space-y-2">
             <label className="text-xs font-bold text-slate-500 dark:text-zinc-500 uppercase tracking-wider pl-1">Rentang Waktu <span className="lowercase font-normal opacity-70">(Khusus Tren)</span></label>
-            <div className="relative group">
-              <select 
+            <div className="flex flex-col gap-2">
+              <CustomSelect
                 value={selectedDays}
-                onChange={(e) => setSelectedDays(parseInt(e.target.value))}
+                onChange={(val) => setSelectedDays(parseInt(val.toString()))}
+                options={[
+                  { label: "7 Hari Terakhir", value: 7 },
+                  { label: "14 Hari Terakhir", value: 14 },
+                  { label: "1 Bulan Terakhir", value: 30 },
+                  { label: "3 Bulan Terakhir", value: 90 },
+                  { label: "6 Bulan Terakhir", value: 180 },
+                  { label: "1 Tahun Terakhir", value: 365 },
+                  { label: "Kustom (Pilih Tanggal)...", value: 0 }
+                ]}
                 disabled={!selectedCommodity}
-                className={cn(
-                  "w-full bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-sm rounded-2xl px-4 py-3 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium cursor-pointer",
-                  !selectedCommodity && "opacity-50 cursor-not-allowed"
-                )}
-              >
-                <option value={7}>7 Hari Terakhir</option>
-                <option value={14}>14 Hari Terakhir</option>
-                <option value={30}>1 Bulan Terakhir</option>
-                <option value={90}>3 Bulan Terakhir</option>
-              </select>
-              <Calendar size={16} className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                searchable={false}
+              />
+              
+              {selectedDays === 0 && (
+                <div className="flex items-center gap-2 animate-in slide-in-from-top-2 fade-in duration-300">
+                  <input 
+                    type="date" 
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    disabled={!selectedCommodity}
+                    className="flex-1 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-xs rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
+                  />
+                  <span className="text-slate-400 font-medium text-xs">-</span>
+                  <input 
+                    type="date" 
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    disabled={!selectedCommodity}
+                    className="flex-1 bg-slate-50 dark:bg-zinc-900/50 border border-slate-200 dark:border-zinc-800 text-slate-800 dark:text-zinc-200 text-xs rounded-xl px-2.5 py-2 outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-50"
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -510,6 +537,7 @@ export default function PricesPage() {
                       dy={10}
                     />
                     <YAxis 
+                      width={90}
                       axisLine={false} 
                       tickLine={false} 
                       tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 500 }}
