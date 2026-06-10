@@ -613,7 +613,7 @@ class DashboardChart extends ConsumerWidget {
 
                           var selected = sheetRef.watch(selectedDashboardCommodityProvider);
                           if (selected == null || !uniquePricesMap.containsKey(selected.commodityBiId)) {
-                            selected = uniquePrices.first;
+                            selected = uniquePrices.firstWhere((p) => p.commodityName.toLowerCase() == 'bawang merah', orElse: () => uniquePrices.firstWhere((p) => p.commodityName.toLowerCase().contains('bawang merah'), orElse: () => uniquePrices.first));
                             Future.microtask(() => sheetRef.read(selectedDashboardCommodityProvider.notifier).state = selected);
                           }
 
